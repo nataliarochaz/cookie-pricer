@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Cookie Pricer - calculadora de custos e precificação de cookies">
+  <title>Cookie Pricer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🍪</div>
+        <div>
+          <strong>Cookie Pricer</strong>
+          <span>Precificação simples</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-page="dashboard"><span>⌂</span> Dashboard</button>
+        <button class="nav-item" data-page="ingredients"><span>🧂</span> Insumos</button>
+        <button class="nav-item" data-page="recipes"><span>📖</span> Receitas</button>
+        <button class="nav-item" data-page="settings"><span>⚙</span> Configurações</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <small>V1 • dados salvos neste navegador</small>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow" id="pageEyebrow">VISÃO GERAL</div>
+          <h1 id="pageTitle">Dashboard</h1>
+        </div>
+        <div class="save-status" id="saveStatus">● Salvo automaticamente</div>
+      </header>
+
+      <section class="page active" id="page-dashboard">
+        <div class="hero">
+          <div>
+            <span class="hero-kicker">COOKIE PRICER</span>
+            <h2>Veja rapidamente onde está seu melhor custo.</h2>
+            <p>Cadastre seus insumos e receitas para transformar ingredientes e embalagens em custo, preço e margem.</p>
+          </div>
+          <button class="primary" data-go="recipes">+ Nova receita</button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card"><span>Receitas</span><strong id="statRecipes">0</strong><small>produtos cadastrados</small></article>
+          <article class="stat-card"><span>Insumos</span><strong id="statIngredients">0</strong><small>ingredientes + embalagens</small></article>
+          <article class="stat-card"><span>Custo médio</span><strong id="statAvgCost">R$ 0,00</strong><small>por unidade</small></article>
+          <article class="stat-card"><span>Margem média</span><strong id="statAvgMargin">0%</strong><small>quando há preço de venda</small></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="card">
+            <div class="card-head">
+              <div><h3>Produtos</h3><p>Resumo das suas receitas</p></div>
+              <button class="ghost small" data-go="recipes">Gerenciar</button>
+            </div>
+            <div id="dashboardProducts" class="product-list empty">Nenhuma receita cadastrada.</div>
+          </section>
+
+          <section class="card highlight-card">
+            <div class="card-head"><div><h3>Melhor margem</h3><p>Entre os produtos com preço definido</p></div></div>
+            <div id="bestMargin" class="big-result">—</div>
+            <div id="bestMarginMeta" class="result-meta">Cadastre uma receita e um preço de venda.</div>
+          </section>
+        </div>
+      </section>
+
+      <section class="page" id="page-ingredients">
+        <div class="section-intro">
+          <div><h2>Insumos</h2><p>Ingredientes e embalagens ficam separados, mas seguem a mesma lógica de custo por unidade.</p></div>
+          <div class="button-row">
+            <button class="primary" id="newIngredientBtn">+ Ingrediente</button>
+            <button class="secondary" id="newPackagingBtn">+ Embalagem</button>
+          </div>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-ingredient-tab="ingredients">Ingredientes</button>
+          <button class="tab" data-ingredient-tab="packaging">Embalagens</button>
+        </div>
+
+        <div class="card table-card">
+          <div id="ingredientTable"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-recipes">
+        <div class="section-intro">
+          <div><h2>Receitas</h2><p>Cadastre a receita base, rendimento e diferentes formatos de venda.</p></div>
+          <button class="primary" id="newRecipeBtn">+ Nova receita</button>
+        </div>
+        <div id="recipeList" class="recipe-grid"></div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="section-intro"><div><h2>Configurações</h2><p>Backup, restauração e custos opcionais.</p></div></div>
+
+        <div class="settings-grid">
+          <section class="card">
+            <div class="card-head"><div><h3>💾 Backup dos dados</h3><p>Salve tudo em um arquivo para levar para outro navegador ou computador.</p></div></div>
+            <div class="backup-actions">
+              <button class="primary" id="exportBtn">Baixar backup JSON</button>
+              <label class="secondary file-button">Restaurar backup
+                <input type="file" id="importInput" accept=".json,application/json">
+              </label>
+            </div>
+            <div class="notice">O backup inclui ingredientes, embalagens, receitas, formatos de venda e configurações.</div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><div><h3>Custos indiretos</h3><p>Opcional nesta primeira versão.</p></div></div>
+            <div class="form-grid two">
+              <label>Gás / energia por receita (R$)<input id="overheadEnergy" type="number" min="0" step="0.01"></label>
+              <label>Mão de obra por receita (R$)<input id="overheadLabor" type="number" min="0" step="0.01"></label>
+            </div>
+            <button class="primary" id="saveSettingsBtn">Salvar configurações</button>
+          </section>
+
+          <section class="card danger-card">
+            <div class="card-head"><div><h3>Zona de segurança</h3><p>Apaga todos os dados deste navegador. Faça um backup antes.</p></div></div>
+            <button class="danger" id="clearDataBtn">Apagar todos os dados</button>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal" id="modal"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
