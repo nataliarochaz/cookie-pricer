@@ -150,7 +150,7 @@ function recipeStats(recipe) {
   return {
     ingredientTotal, fillingPerCookie, indirectPerRecipe, baseBatchCost,
     totalCost: baseBatchCost + (fillingPerCookie * yieldUsed),
-    estimatedMass:doughMass, individualMass, estimatedYield, yieldUsed, costPerCookie, baseCostPerCookie
+    estimatedMass, recipeMassUsed:doughMass, individualMass, estimatedYield, yieldUsed, costPerCookie, baseCostPerCookie
   };
 }
 
@@ -183,7 +183,43 @@ function navigate(page) {
 $$(".nav-item").forEach(b => b.addEventListener("click", () => navigate(b.dataset.page)));
 $$("[data-go]").forEach(b => b.addEventListener("click", () => navigate(b.dataset.go)));
 
-function infoIcon(text){ return `<span class="info-tip" tabindex="0" title="${escapeAttr(text)}">i</span>`; }
+function infoIcon(text){ return `<span class="info-tip" tabindex="0" data-info="${escapeAttr(text)}" aria-label="Informação">i</span>`; }
+
+function positionInfoTooltip(icon){
+  const tip=$("#globalInfoTooltip"); if(!tip)return;
+  tip.textContent=icon.dataset.info||"";
+  tip.classList.add("show");
+  const r=icon.getBoundingClientRect();
+  const width=Math.min(300, window.innerWidth-24);
+  tip.style.width=width+"px";
+  const left=Math.max(12, Math.min(window.innerWidth-width-12, r.left + r.width/2 - width/2));
+  const top=r.top > 110 ? r.top - 10 : r.bottom + 10;
+  tip.style.left=left+"px";
+  tip.style.top=top+"px";
+  tip.style.transform=r.top > 110 ? "translateY(-100%)" : "none";
+}
+function hideInfoTooltip(){ $("#globalInfoTooltip")?.classList.remove("show"); }
+function setupInfoTooltips(){
+  if($("#globalInfoTooltip"))return;
+  const tip=document.createElement("div");
+  tip.id="globalInfoTooltip";
+  tip.className="global-info-tooltip";
+  document.body.appendChild(tip);
+  document.addEventListener("mouseover",e=>{
+    const icon=e.target.closest?.(".info-tip");
+    if(icon)positionInfoTooltip(icon);
+  });
+  document.addEventListener("mouseout",e=>{
+    const icon=e.target.closest?.(".info-tip");
+    if(icon && !icon.contains(e.relatedTarget))hideInfoTooltip();
+  });
+  document.addEventListener("click",e=>{
+    const icon=e.target.closest?.(".info-tip");
+    if(icon){positionInfoTooltip(icon);e.stopPropagation();}
+    else hideInfoTooltip();
+  });
+  window.addEventListener("scroll",hideInfoTooltip,true);
+}
 
 function renderDashboard() {
   $("#statRecipes").textContent = db.recipes.length;
@@ -249,10 +285,15 @@ function renderRecipes() {
   const el=$("#recipeList");
   if(!db.recipes.length){el.innerHTML=`<div class="card empty">Nenhuma receita cadastrada.<br><button class="primary" onclick="openRecipeModal()">Criar primeira receita</button></div>`;return;}
   el.innerHTML=db.recipes.map(r=>{
-    const s=recipeStats(r), price=num(r.salePrice), margin=marginFor(price,s.costPerCookie), p=pricingForCost(s.costPerCookie);
-    return `<article class="recipe-card"><h3>${escapeHtml(r.name)}</h3><div class="recipe-meta">${r.cookieMass||80}g de massa · ${s.estimatedYield||0} un. estimadas ${r.realYield?`· ${r.realYield} reais`:""}</div><div class="recipe-numbers"><div class="mini-stat"><span>Custo/un.</span><strong>${money(s.costPerCookie)}</strong></div><div class="mini-stat"><span>Venda</span><strong>${price?money(price):"—"}</strong></div><div class="mini-stat"><span>Margem ${infoIcon("Margem = lucro bruto ÷ preço de venda. É a porcentagem do preço que sobra depois do custo.")}</span><strong>${margin!==null?margin.toFixed(0)+"%":"—"}</strong></div></div><div class="price-suggestions"><div><span>Mínimo seguro ${infoIcon("É o valor mínimo para recuperar o custo estimado de ingredientes, recheio, custos indiretos e, quando aplicável, embalagem do formato. Não inclui lucro.")}</span><strong>${money(p.replacement)}</strong></div><div><span>Ideal ${infoIcon(`Sugestão de preço para atingir ${p.targetMargin.toFixed(0)}% de margem. Você pode alterar essa meta em Configurações.`)}</span><strong>${money(p.ideal)}</strong></div></div><div class="recipe-formats">${(r.formatIds||[]).map(id=>formatMarkup(id,s,price)).join("")}</div><div class="recipe-card-footer"><span class="recipe-meta">${(r.formatIds||[]).length} formato(s) de venda</span><div class="actions"><button class="icon-btn" onclick="openRecipeModal('${r.id}')">✎</button><button class="icon-btn" onclick="deleteRecipe('${r.id}')">🗑</button></div></div></article>`;
+    const s=recipeStats(r), price=num(r.salePrice), margin=marginFor(price,s.costPerCookie);
+    const usedYield = s.yieldUsed || 0;
+    const yieldLabel = usedYield ? `${usedYield} un.` : "sem rendimento";
+    const yieldSource = r.realYield > 0 ? "real" : "estimado";
+    const massLabel = s.recipeMassUsed > 0 ? `${Math.round(s.recipeMassUsed)}g de receita${r.massOverride > 0 ? " (real)" : " (estimada)"}` : "peso da receita não informado";
+    return `<article class="recipe-card"><h3>${escapeHtml(r.name)}</h3><div class="recipe-meta">${s.individualMass}g por cookie · ${yieldLabel} (${yieldSource}) · ${massLabel}</div><div class="recipe-numbers"><div class="mini-stat"><span>Custo/un. (mínimo seguro) ${infoIcon("Este é o custo estimado para produzir uma unidade. Ele funciona como mínimo seguro da receita porque representa o valor necessário para repor ingredientes, recheio e custos indiretos. Quando houver embalagem, o mínimo seguro daquele formato aparece dentro do formato de venda.")}</span><strong>${money(s.costPerCookie)}</strong></div><div class="mini-stat"><span>Venda ${infoIcon("Preço que você informou para vender uma unidade. Se ficar vazio, o sistema não considera margem de venda.")}</span><strong>${price?money(price):"—"}</strong></div><div class="mini-stat"><span>Margem ${infoIcon("Margem é a porcentagem do preço de venda que sobra depois de pagar o custo. Ex.: venda por R$ 10 e custo de R$ 2 = R$ 8 de lucro bruto e 80% de margem.")}</span><strong>${margin!==null?margin.toFixed(0)+"%":"—"}</strong></div></div><div class="recipe-formats">${(r.formatIds||[]).map(id=>formatMarkup(id,s,price)).join("")}</div><div class="recipe-card-footer"><span class="recipe-meta">${(r.formatIds||[]).length} formato(s) de venda</span><div class="actions"><button class="icon-btn" onclick="openRecipeModal('${r.id}')">✎</button><button class="icon-btn" onclick="deleteRecipe('${r.id}')">🗑</button></div></div></article>`;
   }).join("");
 }
+
 $("#newRecipeBtn").addEventListener("click",()=>openRecipeModal());
 
 function ingredientOptions(selected="") { return db.ingredients.length ? db.ingredients.map(x=>`<option value="${x.id}" ${x.id===selected?"selected":""}>${escapeHtml(x.name)}</option>`).join("") : `<option value="">Cadastre ingredientes primeiro</option>`; }
@@ -273,17 +314,50 @@ function formatMarkup(id,stats,price) {
 function openRecipeModal(id=null, preselectedFormats=null) {
   const old=id?db.recipes.find(x=>x.id===id):null;
   const selectedFormats=preselectedFormats ? [...preselectedFormats] : [...(old?.formatIds||[])];
-  $("#modal").innerHTML=`<div class="modal-header"><div><h2>${old?"Editar":"Nova"} receita</h2><p class="recipe-meta">Cadastre a receita base. O recheio abaixo é calculado pelo consumo de cada cookie.</p></div><button class="close" onclick="closeModal()">✕</button></div><div class="form-grid two"><label>Nome da receita<input id="recipeName" value="${escapeAttr(old?.name||"")}" placeholder="Ex.: Cookie tradicional baunilha"></label><label>Preço de venda por unidade (R$)<input id="salePrice" type="number" min="0" step="0.01" value="${old?.salePrice??""}"></label><label>Peso de massa por cookie (g)<input id="cookieMass" type="number" min="0" step="1" value="${old?.cookieMass??80}"></label><label>Peso de recheio por cookie (g) <span class="recipe-meta">informativo</span><input id="fillingMass" type="number" min="0" step="0.1" value="${old?.fillingMass??20}"></label><label>Rendimento real (un.) <span class="recipe-meta">opcional</span><input id="realYield" type="number" min="0" step="1" value="${old?.realYield??""}" placeholder="Se vazio, usa o estimado"></label><label>Peso real da receita (g) <span class="recipe-meta">opcional</span><input id="massOverride" type="number" min="0" step="1" value="${old?.massOverride??""}" placeholder="Se vazio, soma os ingredientes"></label></div><hr class="section-divider"><div class="card-head"><div><h3>Ingredientes da massa</h3><p>Quantidade usada em uma receita inteira.</p></div><button class="secondary small" id="addIng">+ Ingrediente</button></div><div id="ingRows"></div><hr class="section-divider"><div class="card-head"><div><h3>Recheio por cookie</h3><p>Digite aqui a quantidade que vai em <strong>cada cookie</strong>, não a quantidade da receita inteira.</p></div><button class="secondary small" id="addFill">+ Ingrediente</button></div><div id="fillRows"></div><div class="notice compact">Ex.: se cada cookie leva 20 g de Nutella, coloque <strong>20 g</strong> aqui. O sistema multiplica pelo rendimento para calcular o consumo da receita.</div><hr class="section-divider"><div class="card-head"><div><h3>Formatos de venda</h3><p>Os formatos ficam salvos globalmente e podem ser reutilizados em várias receitas.</p></div><div class="button-row"><button class="secondary small" id="newFormat">+ Novo formato</button></div></div><div class="assign-format-row"><select id="formatPicker"><option value="">Selecione um formato salvo</option>${db.salesFormats.map(f=>`<option value="${f.id}">${escapeHtml(f.name)} · ${f.cookieCount||1} cookie(s)</option>`).join("")}</select><button class="secondary small" id="assignFormat">Atribuir formato</button></div><div id="assignedFormats"></div><div class="notice compact">Ex.: salve uma vez o formato <strong>Delivery</strong> com saquinho + caixa. Depois basta atribuí-lo ao Nutella, Ovomaltine e outras receitas.</div><div class="modal-footer"><button class="secondary" onclick="closeModal()">Cancelar</button><button class="primary" onclick="saveRecipe('${id||""}')">Salvar receita</button></div>`;
+  const draftStats=old?recipeStats(old):{estimatedMass:0,estimatedYield:0};
+  const estimatedYield=draftStats.estimatedYield||0;
+  const estimatedMass=Math.round(draftStats.estimatedMass||0);
+  const idealPlaceholder=pricingForCost(draftStats.costPerCookie||0).ideal;
+  const idealText=idealPlaceholder>0?money(idealPlaceholder):"Será calculado após preencher a receita";
+  const saleInfo=infoIcon("O preço ideal é uma sugestão baseada no seu custo e na margem desejada em Configurações. Você pode ignorar a sugestão e informar o preço que realmente pretende cobrar.");
+  $("#modal").innerHTML=`<div class="modal-header"><div><h2>${old?"Editar":"Nova"} receita</h2><p class="recipe-meta">Cadastre a receita base. O recheio abaixo é calculado pelo consumo de cada cookie.</p></div><button class="close" onclick="closeModal()">✕</button></div><div class="form-grid two"><label>Nome da receita<input id="recipeName" value="${escapeAttr(old?.name||"")}" placeholder="Ex.: Cookie tradicional baunilha"></label><label>Preço de venda por unidade (R$)<input id="salePrice" type="number" min="0" step="0.01" value="${old?.salePrice??""}" placeholder="${idealPlaceholder>0?idealPlaceholder.toFixed(2).replace(".",","):"Preço ideal calculado após preencher a receita"}"><span id="idealPriceHint" class="suggestion-text">Preço ideal sugerido: <strong>${idealText}</strong> ${saleInfo}</span></label><label>Peso de massa por cookie (g)<input id="cookieMass" type="number" min="0" step="1" value="${old?.cookieMass??80}"></label><label>Peso de recheio por cookie (g) <span class="recipe-meta">informativo</span><input id="fillingMass" type="number" min="0" step="0.1" value="${old?.fillingMass??20}"></label><label>Rendimento real (un.) <span class="recipe-meta">opcional</span><input id="realYield" type="number" min="0" step="1" value="${old?.realYield??""}" placeholder="${estimatedYield||"Será calculado"}"></label><label>Peso real da receita (g) <span class="recipe-meta">opcional</span><input id="massOverride" type="number" min="0" step="1" value="${old?.massOverride??""}" placeholder="${estimatedMass||"Será calculado"}"></label></div><hr class="section-divider"><div class="card-head"><div><h3>Ingredientes da massa</h3><p>Quantidade usada em uma receita inteira.</p></div><button class="secondary small" id="addIng">+ Ingrediente</button></div><div id="ingRows"></div><hr class="section-divider"><div class="card-head"><div><h3>Recheio por cookie</h3><p>Digite aqui a quantidade que vai em <strong>cada cookie</strong>, não a quantidade da receita inteira.</p></div><button class="secondary small" id="addFill">+ Ingrediente</button></div><div id="fillRows"></div><div class="notice compact">Ex.: se cada cookie leva 20 g de Nutella, coloque <strong>20 g</strong> aqui. O sistema multiplica pelo rendimento usado para calcular o consumo da receita.</div><hr class="section-divider"><div class="card-head"><div><h3>Formatos de venda</h3><p>Os formatos ficam salvos globalmente e podem ser reutilizados em várias receitas.</p></div><div class="button-row"><button class="secondary small" id="newFormat">+ Novo formato</button></div></div><div class="assign-format-row"><select id="formatPicker"><option value="">Selecione um formato salvo</option>${db.salesFormats.map(f=>`<option value="${f.id}">${escapeHtml(f.name)} · ${f.cookieCount||1} cookie(s)</option>`).join("")}</select><button class="secondary small" id="assignFormat">Atribuir formato</button></div><div id="assignedFormats"></div><div class="notice compact">Ex.: salve uma vez o formato <strong>Delivery</strong> com saquinho + caixa. Depois basta atribuí-lo ao Nutella, Ovomaltine e outras receitas.</div><div class="modal-footer"><button class="secondary" onclick="closeModal()">Cancelar</button><button class="primary" onclick="saveRecipe('${id||""}')">Salvar receita</button></div>`;
   openModal();
   const ingRows=$("#ingRows"),fillRows=$("#fillRows");
   (old?.ingredients||[]).forEach(x=>addIngredientRow(ingRows,x));
   (old?.fillingIngredients||[]).forEach(x=>addIngredientRow(fillRows,x));
-  $("#addIng").onclick=()=>addIngredientRow(ingRows);
-  $("#addFill").onclick=()=>addIngredientRow(fillRows);
+  $("#addIng").onclick=()=>{addIngredientRow(ingRows);bindRecipeDraftInputs();updateIdealPriceHint();};
+  $("#addFill").onclick=()=>{addIngredientRow(fillRows);bindRecipeDraftInputs();updateIdealPriceHint();};
   $("#newFormat").onclick=()=>openSalesFormatModal(null,(newId)=>{ if(newId) selectedFormats.push(newId); closeModal(); openRecipeModal(id, selectedFormats); });
-  $("#assignFormat").onclick=()=>{const v=$("#formatPicker").value;if(!v)return;selectedFormats.push(v);refreshAssignedFormats(selectedFormats);};
+  $("#assignFormat").onclick=()=>{const v=$("#formatPicker").value;if(!v)return;if(!selectedFormats.includes(v))selectedFormats.push(v);refreshAssignedFormats(selectedFormats);};
   refreshAssignedFormats(selectedFormats);
+  bindRecipeDraftInputs();
+  updateIdealPriceHint();
 }
+
+function collectDraftRows(selector){
+  return [...document.querySelectorAll(selector+" .ingredient-row")].map(r=>({ingredientId:r.querySelector(".ing-select")?.value,amount:num(r.querySelector(".ing-amount")?.value),unit:r.querySelector(".ing-unit")?.value})).filter(x=>x.ingredientId&&x.amount>0);
+}
+function draftRecipeStats(){
+  const draft={
+    cookieMass:num($("#cookieMass")?.value)||80,
+    fillingMass:num($("#fillingMass")?.value),
+    realYield:num($("#realYield")?.value),
+    massOverride:num($("#massOverride")?.value),
+    ingredients:collectDraftRows("#ingRows"),
+    fillingIngredients:collectDraftRows("#fillRows")
+  };
+  return recipeStats(draft);
+}
+function updateIdealPriceHint(){
+  const hint=$("#idealPriceHint"); if(!hint)return;
+  const stats=draftRecipeStats();
+  const ideal=pricingForCost(stats.costPerCookie).ideal;
+  hint.innerHTML=`Preço ideal sugerido: <strong>${ideal>0?money(ideal):"será calculado após preencher a receita"}</strong> ${infoIcon("O preço ideal é uma sugestão baseada no seu custo e na margem desejada em Configurações. Você pode ignorar a sugestão e informar o preço que realmente pretende cobrar.")}`;
+}
+function bindRecipeDraftInputs(){
+  [$("#cookieMass"),$("#fillingMass"),$("#realYield"),$("#massOverride"),$("#ingRows"),$("#fillRows")].filter(Boolean).forEach(el=>el.addEventListener("input",updateIdealPriceHint,{once:false}));
+}
+
 function refreshAssignedFormats(ids){
   const unique=[...new Set(ids)].filter(id=>getFormat(id));
   const el=$("#assignedFormats"); if(!el)return;
@@ -379,4 +453,5 @@ function openModal(){$("#modalBackdrop").classList.add("open")}
 function closeModal(){$("#modalBackdrop").classList.remove("open")}
 $("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeModal()});
 
+setupInfoTooltips();
 renderDashboard();

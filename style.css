@@ -42,3 +42,11 @@ button{cursor:pointer}
 .cost-item-right{display:flex;align-items:center;gap:10px}
 .measure-field{transition:opacity .15s ease}
 @media(max-width:760px){.price-suggestions{grid-template-columns:1fr}.assign-format-row{grid-template-columns:1fr}.cost-item{align-items:flex-start}.cost-item-right{display:block;text-align:right}.cost-item-right .actions{margin-top:5px}}
+
+/* Informações: aparecem no hover e também ao clicar; somem ao afastar o mouse. */
+.info-tip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:4px;border:1px solid #a99a8b;border-radius:50%;font-size:10px;font-weight:800;line-height:1;color:#806c5b;cursor:help;vertical-align:-2px;background:#fbf8f4;flex:0 0 16px}
+.info-tip:focus{outline:2px solid #cbb19b;outline-offset:2px}
+.global-info-tooltip{position:fixed;z-index:9999;display:none;padding:10px 12px;border:1px solid #d8cabb;border-radius:10px;background:#2d2722;color:#fff;font-size:12px;line-height:1.4;font-weight:500;box-shadow:0 12px 28px rgba(0,0,0,.18);pointer-events:none;white-space:normal}
+.global-info-tooltip.show{display:block}
+.suggestion-text{display:block;color:#a49a91;font-size:11px;font-weight:500;line-height:1.35}
+.suggestion-text strong{color:#8f8175;font-weight:700}
