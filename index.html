@@ -26,7 +26,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <small>V1 • dados salvos neste navegador</small>
+        <small>V2 • dados salvos neste navegador</small>
       </div>
     </aside>
 
@@ -53,7 +53,7 @@
           <article class="stat-card"><span>Receitas</span><strong id="statRecipes">0</strong><small>produtos cadastrados</small></article>
           <article class="stat-card"><span>Insumos</span><strong id="statIngredients">0</strong><small>ingredientes + embalagens</small></article>
           <article class="stat-card"><span>Custo médio</span><strong id="statAvgCost">R$ 0,00</strong><small>por unidade</small></article>
-          <article class="stat-card"><span>Margem média</span><strong id="statAvgMargin">0%</strong><small>quando há preço de venda</small></article>
+          <article class="stat-card"><span>Margem média <span class="info-tip" tabindex="0" title="Margem é a porcentagem do preço de venda que sobra depois de pagar o custo do cookie.">i</span></span><strong id="statAvgMargin">0%</strong><small>quando há preço de venda</small></article>
         </div>
 
         <div class="dashboard-grid">
@@ -116,12 +116,19 @@
           </section>
 
           <section class="card">
-            <div class="card-head"><div><h3>Custos indiretos</h3><p>Opcional nesta primeira versão.</p></div></div>
-            <div class="form-grid two">
-              <label>Gás / energia por receita (R$)<input id="overheadEnergy" type="number" min="0" step="0.01"></label>
-              <label>Mão de obra por receita (R$)<input id="overheadLabor" type="number" min="0" step="0.01"></label>
-            </div>
+            <div class="card-head"><div><h3>Custos indiretos <span class="info-tip" tabindex="0" title="São gastos que não são ingredientes da receita, mas entram no custo de produção. Você pode separar gás, energia, mão de obra e materiais de consumo como papel manteiga.">i</span></h3><p>Separe gás, energia e outros custos. Materiais por metro, como papel manteiga, podem usar consumo estimado.</p></div><button class="secondary small" id="addIndirectBtn">+ Novo custo</button></div>
+            <div id="indirectCostList"></div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><div><h3>Precificação sugerida <span class="info-tip" tabindex="0" title="O sistema calcula um preço de reposição, que cobre o custo, e um preço ideal baseado na margem de lucro que você definir.">i</span></h3><p>Defina a margem desejada para calcular o preço ideal.</p></div></div>
+            <label>Margem ideal desejada (%) <span class="info-tip" tabindex="0" title="Ex.: 50% significa que metade do preço de venda fica como lucro bruto depois do custo. Com custo de R$ 5, o preço para 50% de margem é R$ 10.">i</span><input id="targetMargin" type="number" min="1" max="95" step="1" value="50"></label>
             <button class="primary" id="saveSettingsBtn">Salvar configurações</button>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><div><h3>Formatos de venda salvos</h3><p>Crie uma vez e reutilize em várias receitas, como Delivery, Balcão ou Kit 10 mini cookies.</p></div><button class="secondary small" id="manageFormatsBtn">Gerenciar formatos</button></div>
+            <div class="notice">Os formatos são independentes das receitas. Assim, o mesmo Delivery pode ser atribuído ao Cookie Nutella e ao Cookie Ovomaltine sem cadastrar a embalagem novamente.</div>
           </section>
 
           <section class="card danger-card">

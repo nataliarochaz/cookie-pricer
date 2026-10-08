@@ -27,3 +27,18 @@ button{cursor:pointer}
 @media(max-width:760px){.sidebar{position:static;width:100%;height:auto;padding:12px}.app-shell{display:block}.brand{padding:4px 8px 12px}.nav{grid-template-columns:repeat(4,1fr)}.nav-item{justify-content:center;font-size:0;padding:10px}.nav-item span{font-size:18px}.sidebar-footer{display:none}.main{margin:0;width:100%;padding:20px 14px 40px}.topbar{align-items:start}.topbar h1{font-size:24px}.save-status{font-size:10px}.hero{padding:20px;display:block}.hero h2{font-size:24px}.hero .primary{margin-top:15px}.stats-grid{grid-template-columns:1fr 1fr}.recipe-grid{grid-template-columns:1fr}.section-intro{align-items:start;display:block}.section-intro .button-row,.section-intro>.primary{margin-top:12px}.form-grid.two,.form-grid.three{grid-template-columns:1fr}.ingredient-row{grid-template-columns:1fr 90px 80px 35px}.table-card{overflow-x:auto}}
 
 .recipe-formats{margin-top:13px}.recipe-formats .format-card{margin-bottom:7px;padding:10px}.recipe-formats .format-card strong{font-size:12px}.recipe-formats .format-meta{font-size:11px}
+
+.info-tip{display:inline-grid;place-items:center;width:16px;height:16px;margin-left:4px;border:1px solid #a99a8b;border-radius:50%;font-size:10px;font-weight:800;color:#806c5b;cursor:help;vertical-align:middle;background:#fbf8f4}
+.info-tip:focus{outline:2px solid #cbb19b;outline-offset:2px}
+.price-suggestions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.price-suggestions>div{background:#f8f5f1;border-radius:9px;padding:9px}
+.price-suggestions span{display:block;color:var(--muted);font-size:10px}
+.price-suggestions strong{font-size:14px}
+.notice.compact{margin-top:10px;font-size:11px}
+.assign-format-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px}
+.assigned-format,.cost-item{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);background:#fbfaf8;border-radius:11px;padding:11px 12px;margin-bottom:8px}
+.assigned-format strong,.cost-item strong{display:block;font-size:12px}
+.assigned-format span,.cost-item span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.cost-item-right{display:flex;align-items:center;gap:10px}
+.measure-field{transition:opacity .15s ease}
+@media(max-width:760px){.price-suggestions{grid-template-columns:1fr}.assign-format-row{grid-template-columns:1fr}.cost-item{align-items:flex-start}.cost-item-right{display:block;text-align:right}.cost-item-right .actions{margin-top:5px}}
