@@ -3,147 +3,126 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Cookie Pricer - calculadora de custos e precificação de cookies">
-  <title>Cookie Pricer</title>
+  <meta name="description" content="Cookie Pricer: ficha técnica, custos e precificação de cookies.">
+  <meta name="theme-color" content="#2f241f">
+  <title>Cookie Pricer | Ficha técnica e preço</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand">
+      <a class="brand" href="#comece" data-go="start" aria-label="Cookie Pricer, início">
         <div class="brand-icon">🍪</div>
-        <div>
-          <strong>Cookie Pricer</strong>
-          <span>Precificação simples</span>
-        </div>
-      </div>
-
-      <nav class="nav">
-        <button class="nav-item active" data-page="dashboard"><span>⌂</span> Dashboard</button>
-        <button class="nav-item" data-page="ingredients"><span>🧂</span> Insumos</button>
-        <button class="nav-item" data-page="recipes"><span>📖</span> Receitas</button>
-        <button class="nav-item" data-page="settings"><span>⚙</span> Configurações</button>
+        <div><strong>Cookie Pricer</strong><span>Ficha técnica & preço</span></div>
+      </a>
+      <div class="nav-label">SUA PRODUÇÃO</div>
+      <nav class="nav" aria-label="Navegação principal">
+        <button class="nav-item active" data-page="start"><span class="nav-icon">⌂</span><span>Comece aqui</span></button>
+        <button class="nav-item" data-page="ingredients"><span class="nav-icon">◈</span><span>Insumos</span></button>
+        <button class="nav-item" data-page="masses"><span class="nav-icon">◉</span><span>Massas</span></button>
+        <button class="nav-item" data-page="fillings"><span class="nav-icon">✳</span><span>Recheios</span></button>
+        <button class="nav-item" data-page="costs"><span class="nav-icon">▦</span><span>Custo por cookie</span></button>
+        <button class="nav-item" data-page="pricing"><span class="nav-icon">R$</span><span>Preço</span></button>
       </nav>
-
-      <div class="sidebar-footer">
-        <small>V2 • dados salvos neste navegador</small>
-      </div>
+      <div class="nav-label nav-label-bottom">SISTEMA</div>
+      <nav class="nav"><button class="nav-item" data-page="settings"><span class="nav-icon">⚙</span><span>Backup e ajustes</span></button></nav>
+      <div class="sidebar-footer"><span class="status-dot"></span><span id="sidebarSaveStatus">Salvo neste navegador</span><small>V3.0 · sem servidor</small></div>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <div>
-          <div class="eyebrow" id="pageEyebrow">VISÃO GERAL</div>
-          <h1 id="pageTitle">Dashboard</h1>
-        </div>
-        <div class="save-status" id="saveStatus">● Salvo automaticamente</div>
+        <div><div class="eyebrow" id="pageEyebrow">ORGANIZE SUA PRODUÇÃO</div><h1 id="pageTitle">Comece aqui</h1></div>
+        <div class="save-pill" id="saveStatus"><span class="status-dot"></span> Salvo automaticamente</div>
       </header>
 
-      <section class="page active" id="page-dashboard">
-        <div class="hero">
-          <div>
-            <span class="hero-kicker">COOKIE PRICER</span>
-            <h2>Veja rapidamente onde está seu melhor custo.</h2>
-            <p>Cadastre seus insumos e receitas para transformar ingredientes e embalagens em custo, preço e margem.</p>
+      <section class="page active" id="page-start">
+        <section class="welcome-panel">
+          <div class="welcome-copy">
+            <span class="kicker">SUA FICHA TÉCNICA, EM ORDEM</span>
+            <h2>Do preço do ingrediente ao preço de venda.</h2>
+            <p>Cadastre uma vez os insumos, monte as massas e os recheios e combine tudo em cada sabor. O custo e o preço sugerido são recalculados automaticamente.</p>
+            <div class="welcome-actions"><button class="primary" data-go="ingredients">Começar pelos insumos <span>→</span></button><button class="secondary" id="loadExamplesBtn">Carregar exemplos da planilha</button></div>
+            <p class="fine-print">Os exemplos são editáveis e usam os valores ilustrativos da planilha enviada. Eles não substituem seus preços reais de compra.</p>
           </div>
-          <button class="primary" data-go="recipes">+ Nova receita</button>
-        </div>
+          <div class="welcome-art" aria-hidden="true"><div class="art-circle circle-one"></div><div class="art-circle circle-two"></div><div class="cookie-art">🍪</div><div class="art-note note-one">Massa + recheio</div><div class="art-note note-two">Custo → preço</div></div>
+        </section>
 
         <div class="stats-grid">
-          <article class="stat-card"><span>Receitas</span><strong id="statRecipes">0</strong><small>produtos cadastrados</small></article>
-          <article class="stat-card"><span>Insumos</span><strong id="statIngredients">0</strong><small>ingredientes + embalagens</small></article>
-          <article class="stat-card"><span>Custo médio</span><strong id="statAvgCost">R$ 0,00</strong><small>por unidade</small></article>
-          <article class="stat-card"><span>Margem média <span class="info-tip" tabindex="0" data-info="Margem é a porcentagem do preço de venda que sobra depois de pagar o custo do cookie." aria-label="Informação">i</span></span><strong id="statAvgMargin">0%</strong><small>quando há preço de venda</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Insumos</span><span class="stat-symbol">◈</span></div><strong id="statIngredients">0</strong><small>ingredientes e embalagens</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Massas</span><span class="stat-symbol">◉</span></div><strong id="statMasses">0</strong><small>fichas técnicas de massa</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Recheios</span><span class="stat-symbol">✳</span></div><strong id="statFillings">0</strong><small>custo por cookie</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Sabores</span><span class="stat-symbol">▦</span></div><strong id="statProducts">0</strong><small>produtos precificados</small></article>
         </div>
 
-        <div class="dashboard-grid">
+        <div class="start-grid">
           <section class="card">
-            <div class="card-head">
-              <div><h3>Produtos</h3><p>Resumo das suas receitas</p></div>
-              <button class="ghost small" data-go="recipes">Gerenciar</button>
+            <div class="card-head"><div><h3>Fluxo de trabalho</h3><p>Siga a ordem para os custos baterem corretamente.</p></div><span class="subtle-label">6 ETAPAS</span></div>
+            <div class="workflow-list">
+              <button class="workflow-step" data-go="ingredients"><span class="step-number">01</span><span><strong>Insumos</strong><small>Preço pago, tamanho da embalagem e unidade de compra.</small></span><span class="step-arrow">→</span></button>
+              <button class="workflow-step" data-go="masses"><span class="step-number">02</span><span><strong>Massas</strong><small>Ingredientes da massa, rendimento e peso da fornada.</small></span><span class="step-arrow">→</span></button>
+              <button class="workflow-step" data-go="fillings"><span class="step-number">03</span><span><strong>Recheios</strong><small>Quantidade por cookie e custo de cada recheio.</small></span><span class="step-arrow">→</span></button>
+              <button class="workflow-step" data-go="costs"><span class="step-number">04</span><span><strong>Custo por cookie</strong><small>Combine massa + recheio + embalagem + fixos + trabalho.</small></span><span class="step-arrow">→</span></button>
+              <button class="workflow-step" data-go="pricing"><span class="step-number">05</span><span><strong>Preço</strong><small>Markup, preço atual, lucro, margem e taxa de plataforma.</small></span><span class="step-arrow">→</span></button>
+              <button class="workflow-step" data-go="settings"><span class="step-number">06</span><span><strong>Backup</strong><small>Exporte seus dados ou restaure o arquivo antigo.</small></span><span class="step-arrow">→</span></button>
             </div>
-            <div id="dashboardProducts" class="product-list empty">Nenhuma receita cadastrada.</div>
           </section>
-
-          <section class="card highlight-card">
-            <div class="card-head"><div><h3>Melhor margem</h3><p>Entre os produtos com preço definido</p></div></div>
-            <div id="bestMargin" class="big-result">—</div>
-            <div id="bestMarginMeta" class="result-meta">Cadastre uma receita e um preço de venda.</div>
+          <section class="card overview-card">
+            <div class="card-head"><div><h3>Resumo dos sabores</h3><p>Uma visão rápida do custo e do preço atual.</p></div><button class="text-button" data-go="pricing">Ver preços →</button></div>
+            <div id="startProductList" class="overview-list empty-state">Ainda não há sabores cadastrados.</div>
           </section>
         </div>
       </section>
 
       <section class="page" id="page-ingredients">
-        <div class="section-intro">
-          <div><h2>Insumos</h2><p>Ingredientes e embalagens ficam separados, mas seguem a mesma lógica de custo por unidade.</p></div>
-          <div class="button-row">
-            <button class="primary" id="newIngredientBtn">+ Ingrediente</button>
-            <button class="secondary" id="newPackagingBtn">+ Embalagem</button>
-          </div>
-        </div>
-
-        <div class="tabs">
-          <button class="tab active" data-ingredient-tab="ingredients">Ingredientes</button>
-          <button class="tab" data-ingredient-tab="packaging">Embalagens</button>
-        </div>
-
-        <div class="card table-card">
-          <div id="ingredientTable"></div>
-        </div>
+        <div class="page-intro"><div><span class="kicker">BASE DE CÁLCULO</span><h2>Insumos</h2><p>Informe o preço pago e o conteúdo da embalagem. O custo por grama, mililitro, metro ou unidade será calculado.</p></div><div class="page-actions"><button class="primary" id="newIngredientBtn">+ Novo ingrediente</button><button class="secondary" id="newPackagingBtn">+ Nova embalagem</button></div></div>
+        <div class="tabs" role="tablist"><button class="tab active" data-ingredient-tab="ingredients">Ingredientes <span id="ingredientCount">0</span></button><button class="tab" data-ingredient-tab="packaging">Embalagens <span id="packagingCount">0</span></button></div>
+        <div class="card table-card"><div class="table-toolbar"><div><strong id="ingredientTableTitle">Ingredientes cadastrados</strong><span>Edite os preços sempre que mudar a compra.</span></div><div class="search-wrap"><span>⌕</span><input id="ingredientSearch" type="search" placeholder="Buscar insumo..."></div></div><div id="ingredientTable" class="table-scroll"></div></div>
       </section>
 
-      <section class="page" id="page-recipes">
-        <div class="section-intro">
-          <div><h2>Receitas</h2><p>Cadastre a receita base, rendimento e diferentes formatos de venda.</p></div>
-          <button class="primary" id="newRecipeBtn">+ Nova receita</button>
-        </div>
-        <div id="recipeList" class="recipe-grid"></div>
+      <section class="page" id="page-masses">
+        <div class="page-intro"><div><span class="kicker">FICHA TÉCNICA</span><h2>Massas</h2><p>Monte a receita de cada massa. O custo da fornada e o custo por cookie usam o rendimento informado.</p></div><button class="primary" id="newMassBtn">+ Nova massa</button></div>
+        <div class="notice info-notice"><strong>Como o rendimento funciona</strong><span>Informe quantos cookies saem da receita. Se pesar a massa pronta, registre o peso real. Quando o rendimento real estiver preenchido, ele será usado no cálculo.</span></div>
+        <div id="massList" class="entity-grid"></div>
+      </section>
+
+      <section class="page" id="page-fillings">
+        <div class="page-intro"><div><span class="kicker">FICHA TÉCNICA</span><h2>Recheios</h2><p>As quantidades são por cookie, não pela fornada inteira. Você também pode lançar uma parte do recheio diretamente em reais.</p></div><button class="primary" id="newFillingBtn">+ Novo recheio</button></div>
+        <div id="fillingList" class="entity-grid"></div>
+      </section>
+
+      <section class="page" id="page-costs">
+        <div class="page-intro"><div><span class="kicker">COMPOSIÇÃO DO CUSTO</span><h2>Custo por cookie</h2><p>Combine uma massa com um recheio para formar cada sabor. Embalagem, custos fixos e mão de obra entram no custo final.</p></div><button class="primary" id="newProductBtn">+ Novo sabor</button></div>
+        <div class="cost-summary-strip"><div><span>Produtos cadastrados</span><strong id="costProductCount">0</strong></div><div><span>Menor custo atual</span><strong id="costLowest">R$ 0,00</strong></div><div><span>Maior custo atual</span><strong id="costHighest">R$ 0,00</strong></div><div><span>Custos indiretos por fornada <button class="info-tip" data-info="Os custos indiretos cadastrados em Backup e ajustes são tratados como custo por fornada e divididos pelo rendimento da massa escolhida. Os campos Fixos e Mão de obra de cada sabor são valores adicionais por cookie.">i</button></span><strong id="costIndirect">R$ 0,00</strong></div></div>
+        <div class="card table-card"><div class="table-toolbar"><div><strong>Ficha de custo por sabor</strong><span>O valor total é calculado automaticamente.</span></div><div class="search-wrap"><span>⌕</span><input id="productSearch" type="search" placeholder="Buscar sabor..."></div></div><div id="costTable" class="table-scroll"></div></div>
+        <div class="section-footer-note">O custo inclui ingredientes da massa e recheio, embalagem por unidade, custos fixos adicionais, mão de obra e a parcela dos custos indiretos por fornada.</div>
+      </section>
+
+      <section class="page" id="page-pricing">
+        <div class="page-intro"><div><span class="kicker">DECISÃO DE VENDA</span><h2>Preço</h2><p>Compare o preço sugerido com o preço que você cobra hoje. Veja lucro, margem e o preço necessário para cobrir a taxa da plataforma.</p></div><div class="pricing-default"><label>Markup padrão <button class="info-tip" data-info="Markup é o multiplicador aplicado ao custo. Com custo de R$ 5 e markup 3, o preço sugerido fica R$ 15. Isso equivale a uma margem bruta de 66,7%, antes de outras despesas que não tenham sido incluídas no custo.">i</button><span><input id="defaultMarkup" type="number" min="1" max="20" step="0.1" value="3"> ×</span></label></div></div>
+        <div class="pricing-kpis" id="pricingKpis"></div>
+        <div class="card table-card"><div class="table-toolbar"><div><strong>Precificação por sabor</strong><span>Markup e taxa podem ser ajustados individualmente.</span></div><div class="legend"><span class="legend-dot good"></span> Margem ≥ 35% <span class="legend-dot warn"></span> Margem abaixo de 35%</div></div><div id="priceTable" class="table-scroll"></div></div>
+        <div class="section-heading"><div><h3>Kits e combos</h3><p>Calcule o preço de caixas e combos, usando um sabor como base.</p></div><button class="secondary" id="newKitBtn">+ Novo kit</button></div>
+        <div class="card table-card"><div id="kitTable" class="table-scroll"></div></div>
+        <div class="section-heading format-heading"><div><h3>Formatos de venda adicionais</h3><p>Os formatos globais importados do sistema antigo podem ser reutilizados entre sabores.</p></div><button class="secondary" id="manageFormatsBtn">Gerenciar formatos</button></div>
+        <div id="assignedFormatSummary" class="format-summary-grid"></div>
       </section>
 
       <section class="page" id="page-settings">
-        <div class="section-intro"><div><h2>Configurações</h2><p>Backup, restauração e custos opcionais.</p></div></div>
-
+        <div class="page-intro"><div><span class="kicker">SEUS DADOS</span><h2>Backup e ajustes</h2><p>Seus dados ficam no navegador. Faça backups regulares para não depender de um único computador.</p></div></div>
         <div class="settings-grid">
-          <section class="card">
-            <div class="card-head"><div><h3>💾 Backup dos dados</h3><p>Salve tudo em um arquivo para levar para outro navegador ou computador.</p></div></div>
-            <div class="backup-actions">
-              <button class="primary" id="exportBtn">Baixar backup JSON</button>
-              <label class="secondary file-button">Restaurar backup
-                <input type="file" id="importInput" accept=".json,application/json">
-              </label>
-            </div>
-            <div class="notice">O backup inclui ingredientes, embalagens, receitas, formatos de venda e configurações.</div>
-          </section>
-
-          <section class="card">
-            <div class="card-head"><div><h3>Custos indiretos <span class="info-tip" tabindex="0" data-info="São gastos que não são ingredientes da receita, mas entram no custo de produção. Você pode separar gás, energia, mão de obra e materiais de consumo como papel manteiga." aria-label="Informação">i</span></h3><p>Separe gás, energia e outros custos. Materiais por metro, como papel manteiga, podem usar consumo estimado.</p></div><button class="secondary small" id="addIndirectBtn">+ Novo custo</button></div>
-            <div id="indirectCostList"></div>
-          </section>
-
-          <section class="card">
-            <div class="card-head"><div><h3>Precificação sugerida <span class="info-tip" tabindex="0" data-info="O sistema calcula um preço de reposição, que cobre o custo, e um preço ideal baseado na margem de lucro que você definir." aria-label="Informação">i</span></h3><p>Defina a margem desejada para calcular o preço ideal.</p></div></div>
-            <label>Margem ideal desejada (%) <span class="info-tip" tabindex="0" data-info="Ex.: 50% significa que metade do preço de venda fica como lucro bruto depois do custo. Com custo de R$ 5, o preço para 50% de margem é R$ 10." aria-label="Informação">i</span><input id="targetMargin" type="number" min="1" max="95" step="1" value="50"></label>
-            <button class="primary" id="saveSettingsBtn">Salvar configurações</button>
-          </section>
-
-          <section class="card">
-            <div class="card-head"><div><h3>Formatos de venda salvos</h3><p>Crie uma vez e reutilize em várias receitas, como Delivery, Balcão ou Kit 10 mini cookies.</p></div><button class="secondary small" id="manageFormatsBtn">Gerenciar formatos</button></div>
-            <div class="notice">Os formatos são independentes das receitas. Assim, o mesmo Delivery pode ser atribuído ao Cookie Nutella e ao Cookie Ovomaltine sem cadastrar a embalagem novamente.</div>
-          </section>
-
-          <section class="card danger-card">
-            <div class="card-head"><div><h3>Zona de segurança</h3><p>Apaga todos os dados deste navegador. Faça um backup antes.</p></div></div>
-            <button class="danger" id="clearDataBtn">Apagar todos os dados</button>
-          </section>
+          <section class="card settings-card"><div class="card-head"><div><h3>Backup completo</h3><p>Exporta e restaura insumos, massas, recheios, sabores, preços, kits e configurações.</p></div><div class="settings-icon">↧</div></div><div class="backup-actions"><button class="primary" id="exportBtn">Baixar backup JSON</button><label class="secondary file-button">Restaurar backup JSON<input type="file" id="importInput" accept=".json,application/json"></label></div><div class="notice compact">A restauração substitui os dados atuais. Exporte um backup antes de restaurar.</div></section>
+          <section class="card settings-card"><div class="card-head"><div><h3>Compatibilidade com o sistema anterior</h3><p>Continue usando os backups antigos do Cookie Pricer, com ingredientes, embalagens, receitas e formatos de venda.</p></div><div class="settings-icon">↻</div></div><div id="legacyStatus" class="legacy-status"></div><div class="backup-actions"><label class="secondary file-button">Importar backup antigo<input type="file" id="legacyImportInput" accept=".json,application/json"></label><button class="secondary" id="importBrowserLegacyBtn">Recuperar dados deste navegador</button></div><p class="fine-print">A primeira migração preserva a chave antiga do navegador, sem apagá-la. A importação de arquivo também aceita o formato usado pelas versões V1 e V2.</p></section>
+          <section class="card settings-card"><div class="card-head"><div><h3>Custos indiretos por fornada <button class="info-tip" data-info="São gastos que você quer ratear por receita, como gás, energia ou papel manteiga. O valor estimado por fornada é dividido pelo rendimento da massa usada em cada sabor.">i</button></h3><p>Adicione custos que não são ingredientes diretos da ficha técnica.</p></div><button class="secondary small" id="addIndirectBtn">+ Novo custo</button></div><div id="indirectCostList"></div></section>
+          <section class="card settings-card"><div class="card-head"><div><h3>Formatos de venda salvos</h3><p>Crie uma combinação uma vez e reutilize em vários sabores.</p></div><button class="secondary small" id="manageFormatsSettingsBtn">Gerenciar</button></div><div id="settingsFormatSummary" class="settings-format-summary"></div></section>
+          <section class="card settings-card danger-card"><div class="card-head"><div><h3>Zona de segurança</h3><p>Apaga os dados da versão nova deste navegador. A chave do sistema antigo não será removida.</p></div></div><button class="danger" id="clearDataBtn">Apagar dados da V3</button></section>
         </div>
       </section>
     </main>
   </div>
 
-  <div class="modal-backdrop" id="modalBackdrop">
-    <div class="modal" id="modal"></div>
-  </div>
-
+  <div class="modal-backdrop" id="modalBackdrop" aria-hidden="true"><div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"></div></div>
+  <div id="globalInfoTooltip" class="global-info-tooltip" role="tooltip"></div>
+  <div id="toastRegion" class="toast-region" aria-live="polite"></div>
   <script src="script.js"></script>
 </body>
 </html>
