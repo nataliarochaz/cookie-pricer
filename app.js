@@ -90,6 +90,28 @@ function money(value) { return new Intl.NumberFormat('pt-BR',{style:'currency',c
 function decimal(value, digits=2) { return new Intl.NumberFormat('pt-BR',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(num(value)); }
 function percent(value, digits=1) { return `${decimal(num(value)*100,digits)}%`; }
 function findById(list,id) { return list.find(item => item.id === id) || null; }
+function lastUsed(entity, field, fallback) {
+  const values = state && state.lastUsedDefaults && state.lastUsedDefaults[entity];
+  return values && Object.prototype.hasOwnProperty.call(values, field) ? values[field] : fallback;
+}
+function rememberLastUsed(entity, field, value) {
+  if (!state.lastUsedDefaults || typeof state.lastUsedDefaults !== 'object') state.lastUsedDefaults = {};
+  if (!state.lastUsedDefaults[entity] || typeof state.lastUsedDefaults[entity] !== 'object') state.lastUsedDefaults[entity] = {};
+  state.lastUsedDefaults[entity][field] = value;
+}
+function previousValue(list, field, fallback) {
+  const last = Array.isArray(list) && list.length ? list[list.length - 1] : null;
+  return last && last[field] !== undefined && last[field] !== null ? last[field] : fallback;
+}
+function fieldDefault(entity, field, list, fallback) {
+  return lastUsed(entity, field, previousValue(list, field, fallback));
+}
+function relationDefault(entity, field, records, options, fallback='') {
+  const candidate = fieldDefault(entity, field, records, fallback);
+  if (options.some(item => item.id === candidate)) return candidate;
+  if (options.some(item => item.id === fallback)) return fallback;
+  return options[0]?.id || '';
+}
 function itemName(list,id,missing='Não definido') { return (findById(list,id)?.name) || missing; }
 function getIngredient(id) { return findById(state.ingredients,id); }
 function baseUnit(unit) { return unit === 'kg' ? 'g' : (unit || 'un'); }
@@ -196,6 +218,7 @@ function normalizeState(raw) {
   data.kits=Array.isArray(data.kits)?data.kits:[];
   data.packagings=Array.isArray(data.packagings)?data.packagings:[];
   data.packagingKits=Array.isArray(data.packagingKits)?data.packagingKits:[];
+  data.lastUsedDefaults = data.lastUsedDefaults && typeof data.lastUsedDefaults === 'object' ? data.lastUsedDefaults : {};
   // Per-kit optional freight allocation. Existing kits default to freight off.
   data.packagingKits.forEach(kit=>{
     if(typeof kit.freightEnabled!=='boolean') kit.freightEnabled=false;
@@ -557,29 +580,71 @@ function deleteRecord(type,id) {
 }
 function addRecord(type) {
   const id=makeId(type);
-  if (type==='ingredient') state.ingredients.push({id,name:'Novo insumo',price:0,packQty:1000,unit:'g',note:''});
-  if (type==='dough') state.doughs.push({id,name:'Nova massa',yield:1,components:[]});
-  if (type==='filling') state.fillings.push({id,name:'Novo recheio',other:0,note:'',components:[]});
-  if (type==='cookie') state.cookies.push({id,name:'Novo sabor',doughId:state.doughs[0]?.id||'',fillingId:state.fillings[0]?.id||'',packagingKitId:state.packagingKits[0]?.id||'',fixed:1.5,labor:0,markup:3,currentPrice:0,platformFee:0.27});
-  if (type==='kit') state.kits.push({id,name:'Novo kit',qty:1,baseCookieId:state.cookies[0]?.id||'',discount:0});
-  if (type==='packaging') state.packagings.push({id,name:'Nova embalagem',price:0,packQty:1,unit:'un',note:''});
-  if (type==='packagingKit') state.packagingKits.push({id,name:'Novo kit de embalagem',note:'',components:[],freightEnabled:false,freightTotal:10,freightCookieQty:12});
-  saveState(); render(); showToast('Novo cadastro criado.');
+  if (type==='ingredient') state.ingredients.push({
+    id,name:'Novo insumo',
+    price:fieldDefault('ingredient','price',state.ingredients,0),
+    packQty:fieldDefault('ingredient','packQty',state.ingredients,1000),
+    unit:fieldDefault('ingredient','unit',state.ingredients,'g'),note:''
+  });
+  if (type==='dough') state.doughs.push({
+    id,name:'Nova massa',yield:fieldDefault('dough','yield',state.doughs,1),components:[]
+  });
+  if (type==='filling') state.fillings.push({
+    id,name:'Novo recheio',other:fieldDefault('filling','other',state.fillings,0),note:'',components:[]
+  });
+  if (type==='cookie') state.cookies.push({
+    id,name:'Novo sabor',
+    doughId:relationDefault('cookie','doughId',state.cookies,state.doughs,state.doughs[0]?.id||''),
+    fillingId:relationDefault('cookie','fillingId',state.cookies,state.fillings,state.fillings[0]?.id||''),
+    packagingKitId:relationDefault('cookie','packagingKitId',state.cookies,state.packagingKits,state.packagingKits[0]?.id||''),
+    fixed:fieldDefault('cookie','fixed',state.cookies,1.5),
+    labor:fieldDefault('cookie','labor',state.cookies,0),
+    markup:fieldDefault('cookie','markup',state.cookies,3),
+    currentPrice:fieldDefault('cookie','currentPrice',state.cookies,0),
+    platformFee:fieldDefault('cookie','platformFee',state.cookies,0.27)
+  });
+  if (type==='kit') state.kits.push({
+    id,name:'Novo kit',qty:fieldDefault('kit','qty',state.kits,1),
+    baseCookieId:relationDefault('kit','baseCookieId',state.kits,state.cookies,state.cookies[0]?.id||''),
+    discount:fieldDefault('kit','discount',state.kits,0)
+  });
+  if (type==='packaging') state.packagings.push({
+    id,name:'Nova embalagem',price:fieldDefault('packaging','price',state.packagings,0),
+    packQty:fieldDefault('packaging','packQty',state.packagings,1),
+    unit:fieldDefault('packaging','unit',state.packagings,'un'),note:''
+  });
+  if (type==='packagingKit') state.packagingKits.push({
+    id,name:'Novo kit de embalagem',note:'',components:[],freightEnabled:false,
+    freightTotal:fieldDefault('packagingKit','freightTotal',state.packagingKits,10),
+    freightCookieQty:fieldDefault('packagingKit','freightCookieQty',state.packagingKits,12)
+  });
+  saveState(); render(); showToast('Novo cadastro criado com os últimos valores usados como padrão.');
 }
 function addComponent(type,id) {
   if(type==='packagingKit') {
     const kit=findById(state.packagingKits,id); if(!kit) return;
     if(!state.packagings.length) { showToast('Cadastre primeiro uma embalagem.'); return; }
     kit.components=kit.components||[];
-    kit.components.push({id:makeId('pack-component'),packagingId:state.packagings[0].id,qty:1});
+    const previous=kit.components[kit.components.length-1];
+    kit.components.push({
+      id:makeId('pack-component'),
+      packagingId:relationDefault('packagingComponent','packagingId',kit.components,state.packagings,previous?.packagingId||state.packagings[0].id),
+      qty:lastUsed('packagingComponent','qty',previous?.qty??1)
+    });
     saveState(); render(); return;
   }
   const list=type==='dough'?state.doughs:state.fillings;
   const recipe=findById(list,id); if(!recipe) return;
   if(!state.ingredients.length) { showToast('Cadastre primeiro um insumo.'); return; }
+  const key=type==='dough'?'doughComponent':'fillingComponent';
+  const previous=(recipe.components||[])[(recipe.components||[]).length-1];
   const componentId=makeId(type==='dough'?'dc':'fc');
   recipe.components=recipe.components||[];
-  recipe.components.push({id:componentId,ingredientId:state.ingredients[0].id,qty:0});
+  recipe.components.push({
+    id:componentId,
+    ingredientId:relationDefault(key,'ingredientId',recipe.components,state.ingredients,previous?.ingredientId||state.ingredients[0].id),
+    qty:lastUsed(key,'qty',previous?.qty??0)
+  });
   saveState(); render();
 }
 function removeComponent(type,id,subid) {
@@ -602,14 +667,17 @@ function updateField(el) {
     const obj=findById(state.ingredients,id);
     if(obj) {
       if(field==='unit' && obj.unit!==val && ((obj.unit==='g' && val==='kg') || (obj.unit==='kg' && val==='g'))) {
-        // Converte somente a quantidade comprada. Receitas continuam padronizadas em gramas.
         const factor = val==='kg' ? 0.001 : 1000;
         obj.packQty = Number((num(obj.packQty) * factor).toFixed(6));
       }
       obj[field]=val;
+      if(['price','packQty','unit'].includes(field)) rememberLastUsed('ingredient',field,val);
     }
   }
-  else if(entity==='packaging') { const obj=findById(state.packagings,id); if(obj) obj[field]=val; }
+  else if(entity==='packaging') {
+    const obj=findById(state.packagings,id);
+    if(obj) { obj[field]=val; if(['price','packQty','unit'].includes(field)) rememberLastUsed('packaging',field,val); }
+  }
   else if(entity==='packagingKit') {
     const obj=findById(state.packagingKits,id);
     if(obj) {
@@ -617,37 +685,65 @@ function updateField(el) {
       else if(field==='freightTotal') obj[field]=Math.max(0,num(val));
       else if(field==='freightCookieQty') obj[field]=Math.max(1,Math.floor(num(val)||12));
       else obj[field]=val;
+      if(field==='freightTotal' || field==='freightCookieQty') rememberLastUsed('packagingKit',field,obj[field]);
     }
   }
   else if(entity==='packagingComponent') {
     const obj=findById(state.packagingKits,id); const comp=obj&&(obj.components||[]).find(c=>c.id===el.dataset.subid);
-    if(comp) comp[field]=field==='qty'?Math.max(0,num(val)):val;
+    if(comp) {
+      comp[field]=field==='qty'?Math.max(0,num(val)):val;
+      if(['qty','packagingId'].includes(field)) rememberLastUsed('packagingComponent',field,comp[field]);
+    }
   }
-  else if(entity==='dough') { const obj=findById(state.doughs,id); if(obj) obj[field]=val; }
-  else if(entity==='filling') { const obj=findById(state.fillings,id); if(obj) obj[field]=val; }
+  else if(entity==='dough') {
+    const obj=findById(state.doughs,id);
+    if(obj) { obj[field]=val; if(field==='yield') rememberLastUsed('dough','yield',val); }
+  }
+  else if(entity==='filling') {
+    const obj=findById(state.fillings,id);
+    if(obj) { obj[field]=val; if(field==='other') rememberLastUsed('filling','other',val); }
+  }
   else if(entity==='cookie') {
     const obj=findById(state.cookies,id);
     if(obj) {
-      if(field==='platformFeePct') obj.platformFee=Math.max(0,Math.min(.9999,num(val)/100));
-      else obj[field]=val;
+      if(field==='platformFeePct') {
+        obj.platformFee=Math.max(0,Math.min(.9999,num(val)/100));
+        rememberLastUsed('cookie','platformFee',obj.platformFee);
+      } else {
+        obj[field]=val;
+        if(['doughId','fillingId','packagingKitId','fixed','labor','markup','currentPrice'].includes(field)) rememberLastUsed('cookie',field,val);
+      }
     }
   }
   else if(entity==='kit') {
     const obj=findById(state.kits,id);
     if(obj) {
-      if(field==='discountPct') obj.discount=Math.max(0,Math.min(1,num(val)/100));
-      else obj[field]=val;
+      if(field==='discountPct') {
+        obj.discount=Math.max(0,Math.min(1,num(val)/100));
+        rememberLastUsed('kit','discount',obj.discount);
+      } else {
+        obj[field]=val;
+        if(['qty','baseCookieId'].includes(field)) rememberLastUsed('kit',field,val);
+      }
     }
   }
   else if(entity==='doughComponent') {
-    const obj=findById(state.doughs,id); const comp=obj&&(obj.components||[]).find(c=>c.id===el.dataset.subid); if(comp) comp[field]=field==='qty'?Math.max(0,num(val)):val;
+    const obj=findById(state.doughs,id); const comp=obj&&(obj.components||[]).find(c=>c.id===el.dataset.subid);
+    if(comp) {
+      comp[field]=field==='qty'?Math.max(0,num(val)):val;
+      if(['qty','ingredientId'].includes(field)) rememberLastUsed('doughComponent',field,comp[field]);
+    }
   }
   else if(entity==='fillingComponent') {
-    const obj=findById(state.fillings,id); const comp=obj&&(obj.components||[]).find(c=>c.id===el.dataset.subid); if(comp) comp[field]=field==='qty'?Math.max(0,num(val)):val;
+    const obj=findById(state.fillings,id); const comp=obj&&(obj.components||[]).find(c=>c.id===el.dataset.subid);
+    if(comp) {
+      comp[field]=field==='qty'?Math.max(0,num(val)):val;
+      if(['qty','ingredientId'].includes(field)) rememberLastUsed('fillingComponent',field,comp[field]);
+    }
   }
   saveState();
-  // Recalculate output values while preserving focus and cursor when practical.
-  const active = document.activeElement; const view=currentView;
+  // Recalcula sem perder o foco/cursor no campo editado.
+  const active = document.activeElement;
   render();
   if(active && active.dataset && active.dataset.entity) {
     const selector=`[data-entity="${CSS.escape(entity)}"][data-id="${CSS.escape(id)}"][data-field="${CSS.escape(field)}"]${el.dataset.subid?`[data-subid="${CSS.escape(el.dataset.subid)}"]`:''}`;
