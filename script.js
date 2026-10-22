@@ -2,16 +2,25 @@
 
 const STORAGE_KEY = 'cookie-pricer-v3';
 const LEGACY_KEY = 'cookie-pricer-v1';
-const APP_VERSION = '3.1';
+const APP_VERSION = '3.2';
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 
 const EMPTY_DB = {
   schemaVersion: 3,
   ingredients: [], packaging: [], masses: [], fillings: [], products: [], kits: [], salesFormats: [],
-  settings: { defaultMarkup: 3, indirectCosts: [] }
+  settings: { defaultMarkup: 3, indirectCosts: [], workTransportPerTrip: 10, workMinimumCookies: 12 }
 };
 let db = loadDB();
+function ensureWorkFormat() {
+  let format = db.salesFormats.find(f => String(f.name||'').trim().toLocaleLowerCase('pt-BR') === 'trabalho da agatha');
+  const perCookie = Math.ceil((num(db.settings.workTransportPerTrip ?? 10) / Math.max(1, Math.floor(num(db.settings.workMinimumCookies ?? 12) || 12))) * 100) / 100;
+  if (!format) { format = {id:uid('fmt'), name:'Trabalho da Agatha', cookieCount:1, packaging:[], extraCostPerCookie:perCookie, isDefaultWorkFormat:true}; db.salesFormats.push(format); }
+  else if (format.isDefaultWorkFormat || format.extraCostPerCookie===undefined) { format.extraCostPerCookie=perCookie; format.isDefaultWorkFormat=true; }
+  db.products.forEach(product => { product.formatIds = Array.isArray(product.formatIds) ? product.formatIds : []; if (!product.formatIds.includes(format.id)) product.formatIds.push(format.id); });
+}
+ensureWorkFormat();
+try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch {}
 let currentIngredientTab = 'ingredients';
 let searchTerms = { ingredients: '', products: '' };
 
@@ -49,6 +58,8 @@ function normalizeV3(incoming) {
     settings: {...deepClone(EMPTY_DB.settings), ...(src.settings || {})}
   };
   out.settings.defaultMarkup = Math.min(20, Math.max(1, num(out.settings.defaultMarkup) || 3));
+  out.settings.workTransportPerTrip = Math.max(0, num(out.settings.workTransportPerTrip ?? 10));
+  out.settings.workMinimumCookies = Math.max(1, Math.floor(num(out.settings.workMinimumCookies ?? 12) || 12));
   out.settings.indirectCosts = normalizeRows(out.settings.indirectCosts);
   for (const group of ['ingredients','packaging','masses','fillings','products','kits','salesFormats']) {
     out[group] = out[group].map(item => ({...item, id: item.id || uid(group)}));
@@ -65,7 +76,7 @@ function normalizeV3(incoming) {
     markupTarget: p.markupTarget === null || p.markupTarget === undefined || p.markupTarget === '' ? null : Math.max(1, num(p.markupTarget) || out.settings.defaultMarkup)
   }));
   out.kits = out.kits.map(k => ({...k, quantity:Math.max(1, Math.floor(num(k.quantity)||1)), discount:Math.min(95,num(k.discount)), packagingCost:num(k.packagingCost), salePrice:num(k.salePrice)}));
-  out.salesFormats = out.salesFormats.map(f => ({...f, name:String(f.name||'Formato de venda'), cookieCount:Math.max(1,Math.floor(num(f.cookieCount)||1)), packaging:normalizeRows(f.packaging)}));
+  out.salesFormats = out.salesFormats.map(f => ({...f, name:String(f.name||'Formato de venda'), cookieCount:Math.max(1,Math.floor(num(f.cookieCount)||1)), packaging:normalizeRows(f.packaging), extraCostPerCookie:num(f.extraCostPerCookie)}));
   out.settings.indirectCosts = out.settings.indirectCosts.map(c => ({...c, id:c.id||uid('ind'), price:num(c.price), packageQty:num(c.packageQty)||1, packageUnit:c.packageUnit||'un', usage:num(c.usage), mode:c.mode||'perRecipe'}));
   out.schemaVersion = 3;
   return out;
@@ -230,8 +241,9 @@ function formatPackagingCost(format) {
 function productFormatStats(product,format) {
   const s=productStats(product); const count=Math.max(1,Math.floor(num(format.cookieCount)||1));
   const packCost=formatPackagingCost(format);
-  const total=s.baseCost*count+packCost;
-  return {count,packCost,total,costPerCookie:total/count,suggestedPrice:total*s.markup};
+  const extraCost=num(format.extraCostPerCookie)*count;
+  const total=s.baseCost*count+packCost+extraCost;
+  return {count,packCost,extraCost,total,costPerCookie:total/count,suggestedPrice:total*s.markup};
 }
 function productDisplayName(id) { return getProduct(id)?.name || 'Sabor removido'; }
 
@@ -454,6 +466,7 @@ function openProductModal(id=null) {
 function saveProduct(id) {
   const old=id?getProduct(id):null;const markupValue=$('#productMarkup').value.trim();
   const item={...(old||{}),id:id||uid('prod'),name:$('#productName').value.trim(),massId:$('#productMass').value,fillingId:$('#productFilling').value,packagingCost:num(old?.packagingCost),fixedCost:num(old?.fixedCost),laborCost:num(old?.laborCost),salePrice:num($('#productSalePrice').value),markupTarget:markupValue===''?null:Math.max(1,num(markupValue)),platformFee:old?.platformFee??0.27,formatIds:$$('.product-format-check').filter(c=>c.checked).map(c=>c.value)};
+  if(!old){const workFormat=db.salesFormats.find(f=>String(f.name||'').trim().toLocaleLowerCase('pt-BR')==='trabalho da agatha');if(workFormat&&!item.formatIds.includes(workFormat.id))item.formatIds.push(workFormat.id);}
   if(!item.name){toast('Informe o nome do sabor.','error');return;}if(!item.massId||!getItemById(db.masses,item.massId)){toast('Escolha a massa usada neste sabor.','error');return;}
   const arr=db.products,idx=arr.findIndex(x=>x.id===id);if(idx>=0)arr[idx]=item;else arr.push(item);saveDB();closeModal();renderCosts();renderPricing();renderStart();toast('Sabor salvo.');
 }
@@ -482,7 +495,7 @@ $('#newKitBtn').addEventListener('click',()=>openKitModal());
 function renderKits() {
   const target=$('#kitTable');
   if(!db.kits.length){target.innerHTML='<div class="empty-table">Nenhum kit cadastrado ainda. Crie caixas de 4, 6 ou 12 unidades, por exemplo.</div>';return;}
-  target.innerHTML=`<table class="data-table"><thead><tr><th>Kit</th><th>Qtd.</th><th>Sabor base</th><th>Formato / embalagem</th><th>Custo do kit</th><th>Preço sugerido</th><th>Desconto</th><th>Lucro estimado</th><th></th></tr></thead><tbody>${db.kits.map(k=>{const product=getProduct(k.productId);const s=product?productStats(product):null;const format=getItemById(db.salesFormats,k.formatId);const quantity=format?Math.max(1,Math.floor(num(format.cookieCount)||1)):k.quantity;const packCost=format?formatPackagingCost(format):num(k.packagingCost);const cost=s?s.baseCost*quantity+packCost:0;const suggested=s?cost*s.markup*(1-num(k.discount)/100):0;const profit=suggested-cost;const formatLabel=format?escapeHtml(format.name):num(k.packagingCost)>0?`Embalagem antiga (${money(k.packagingCost)})`:'Sem formato';return `<tr><td><strong>${escapeHtml(k.name)}</strong></td><td>${quantity}</td><td>${escapeHtml(product?.name||'Sabor removido')}</td><td>${formatLabel}</td><td class="cost-value">${money(cost)}</td><td class="cost-value">${money(suggested)}</td><td>${pct(k.discount,0)}</td><td class="${profit<0?'text-danger':'cost-value'}">${money(profit)}</td><td class="actions-cell"><div class="actions"><button class="icon-btn" title="Editar kit" aria-label="Editar kit" onclick="openKitModal('${k.id}')">✎</button><button class="icon-btn text-danger" title="Excluir kit" aria-label="Excluir kit" onclick="deleteEntity('kits','${k.id}')">×</button></div></td></tr>`;}).join('')}</tbody></table>`;
+  target.innerHTML=`<table class="data-table"><thead><tr><th>Kit</th><th>Qtd.</th><th>Sabor base</th><th>Formato / embalagem</th><th>Custo do kit</th><th>Preço sugerido</th><th>Desconto</th><th>Lucro estimado</th><th></th></tr></thead><tbody>${db.kits.map(k=>{const product=getProduct(k.productId);const s=product?productStats(product):null;const format=getItemById(db.salesFormats,k.formatId);const quantity=format?Math.max(1,Math.floor(num(format.cookieCount)||1)):k.quantity;const packCost=format?formatPackagingCost(format):num(k.packagingCost);const extraCost=format?num(format.extraCostPerCookie)*quantity:0;const cost=s?s.baseCost*quantity+packCost+extraCost:0;const suggested=s?cost*s.markup*(1-num(k.discount)/100):0;const profit=suggested-cost;const formatLabel=format?escapeHtml(format.name):num(k.packagingCost)>0?`Embalagem antiga (${money(k.packagingCost)})`:'Sem formato';return `<tr><td><strong>${escapeHtml(k.name)}</strong></td><td>${quantity}</td><td>${escapeHtml(product?.name||'Sabor removido')}</td><td>${formatLabel}</td><td class="cost-value">${money(cost)}</td><td class="cost-value">${money(suggested)}</td><td>${pct(k.discount,0)}</td><td class="${profit<0?'text-danger':'cost-value'}">${money(profit)}</td><td class="actions-cell"><div class="actions"><button class="icon-btn" title="Editar kit" aria-label="Editar kit" onclick="openKitModal('${k.id}')">✎</button><button class="icon-btn text-danger" title="Excluir kit" aria-label="Excluir kit" onclick="deleteEntity('kits','${k.id}')">×</button></div></td></tr>`;}).join('')}</tbody></table>`;
 }
 function openKitModal(id=null) {
   const old=id?getItemById(db.kits,id):null;
@@ -508,11 +521,11 @@ function renderFormatSummaries() {
   const assigned=[];
   db.products.forEach(product=>(product.formatIds||[]).forEach(id=>{const f=getItemById(db.salesFormats,id);if(f)assigned.push({product,format:f,stats:productFormatStats(product,f)});}));
   const target=$('#assignedFormatSummary');
-  target.innerHTML=assigned.length?assigned.map(item=>`<article class="format-summary-card"><strong>${escapeHtml(item.product.name)} · ${escapeHtml(item.format.name)}</strong><small>${item.stats.count} cookie(s) · Embalagem ${money(item.stats.packCost)} · Custo do formato ${money(item.stats.total)}</small><span class="format-count">Preço sugerido do formato: ${money(item.stats.suggestedPrice)}</span></article>`).join(''):'<div class="empty-table" style="grid-column:1/-1">Nenhum formato global vinculado a um sabor. Edite um sabor em “Custo por cookie” para vincular formatos.</div>';
+  target.innerHTML=assigned.length?assigned.map(item=>`<article class="format-summary-card"><strong>${escapeHtml(item.product.name)} · ${escapeHtml(item.format.name)}</strong><small>${item.stats.count} cookie(s) · Embalagem ${money(item.stats.packCost)} · Transporte/outros ${money(item.stats.extraCost)} · Custo do formato ${money(item.stats.total)}</small><span class="format-count">Preço sugerido do formato: ${money(item.stats.suggestedPrice)} · ${money(item.stats.suggestedPrice/item.stats.count)} por cookie</span></article>`).join(''):'<div class="empty-table" style="grid-column:1/-1">Nenhum formato global vinculado a um sabor. Edite um sabor em “Custo por cookie” para vincular formatos.</div>';
 }
 function renderSettingsFormatSummary() {
   const target=$('#settingsFormatSummary');if(!target)return;
-  target.innerHTML=db.salesFormats.length?db.salesFormats.map(f=>`<div class="cost-item"><div><strong>${escapeHtml(f.name)}</strong><span>${f.cookieCount||1} cookie(s) · ${(f.packaging||[]).map(row=>{const p=getItemById(db.packaging,row.packagingId);return p?`${escapeHtml(p.name)} × ${row.quantity}`:'Embalagem removida';}).join(' + ')||'Sem itens de embalagem'}${db.kits.some(k=>k.formatId===f.id)?' · usado em kit':''}</span></div><div class="cost-item-right"><strong>${money(formatPackagingCost(f))}</strong><span>custo da embalagem</span></div></div>`).join(''):'<div class="empty-table">Nenhum formato global cadastrado.</div>';
+  target.innerHTML=db.salesFormats.length?db.salesFormats.map(f=>`<div class="cost-item"><div><strong>${escapeHtml(f.name)}</strong><span>${f.cookieCount||1} cookie(s) · Adicional por cookie ${money(f.extraCostPerCookie)} · ${(f.packaging||[]).map(row=>{const p=getItemById(db.packaging,row.packagingId);return p?`${escapeHtml(p.name)} × ${row.quantity}`:'Embalagem removida';}).join(' + ')||'Sem itens de embalagem'}${db.kits.some(k=>k.formatId===f.id)?' · usado em kit':''}</span></div><div class="cost-item-right"><strong>${money(formatPackagingCost(f)+(num(f.extraCostPerCookie)*(num(f.cookieCount)||1)))}</strong><span>embalagem + adicionais do formato</span></div></div>`).join(''):'<div class="empty-table">Nenhum formato global cadastrado.</div>';
 }
 function manageSalesFormats() {
   $('#modal').innerHTML=`<div class="modal-header"><div><span class="kicker">FORMATOS REUTILIZÁVEIS</span><h2 id="modalTitle">Formatos de venda</h2><p>Crie uma combinação de embalagem uma vez e vincule a vários sabores.</p></div><button class="close" onclick="closeModal()" aria-label="Fechar">×</button></div><div id="formatManagerList"></div><div class="modal-footer"><button class="secondary" onclick="closeModal()">Fechar</button><button class="primary" onclick="openSalesFormatModal(null,manageSalesFormats)">+ Novo formato</button></div>`;
@@ -520,11 +533,11 @@ function manageSalesFormats() {
 }
 function renderFormatManagerList() {
   const target=$('#formatManagerList');if(!target)return;
-  target.innerHTML=db.salesFormats.length?db.salesFormats.map(f=>`<div class="cost-item"><div><strong>${escapeHtml(f.name)}</strong><span>${f.cookieCount||1} cookie(s) · ${(f.packaging||[]).map(row=>{const p=getItemById(db.packaging,row.packagingId);return p?`${escapeHtml(p.name)} × ${row.quantity}`:'Item removido';}).join(' + ')}</span></div><div class="actions"><button class="icon-btn" onclick="openSalesFormatModal('${f.id}',manageSalesFormats)" aria-label="Editar formato">✎</button><button class="icon-btn text-danger" onclick="deleteSalesFormat('${f.id}')" aria-label="Excluir formato">×</button></div></div>`).join(''):'<div class="empty-table">Nenhum formato ainda.</div>';
+  target.innerHTML=db.salesFormats.length?db.salesFormats.map(f=>`<div class="cost-item"><div><strong>${escapeHtml(f.name)}</strong><span>${f.cookieCount||1} cookie(s) · Adicional por cookie ${money(f.extraCostPerCookie)} · ${(f.packaging||[]).map(row=>{const p=getItemById(db.packaging,row.packagingId);return p?`${escapeHtml(p.name)} × ${row.quantity}`:'Item removido';}).join(' + ')}</span></div><div class="actions"><button class="icon-btn" onclick="openSalesFormatModal('${f.id}',manageSalesFormats)" aria-label="Editar formato">✎</button><button class="icon-btn text-danger" onclick="deleteSalesFormat('${f.id}')" aria-label="Excluir formato">×</button></div></div>`).join(''):'<div class="empty-table">Nenhum formato ainda.</div>';
 }
 function openSalesFormatModal(id=null,onSaved=null) {
   const old=id?getItemById(db.salesFormats,id):null;
-  $('#modal').innerHTML=`<div class="modal-header"><div><span class="kicker">FORMATOS REUTILIZÁVEIS</span><h2 id="modalTitle">${old?'Editar formato':'Novo formato de venda'}</h2><p>O formato pode ser atribuído a vários sabores. Editá-lo atualiza os sabores vinculados. A embalagem é opcional, então você também pode criar um formato sem custo adicional.</p></div><button class="close" onclick="${onSaved?'manageSalesFormats()':'closeModal()'}" aria-label="Fechar">×</button></div><div class="form-grid two"><label>Nome do formato<input id="formatName" value="${escapeAttr(old?.name||'')}" placeholder="Ex.: Delivery" required></label><label>Quantidade de cookies<input id="formatCookieCount" type="number" min="1" step="1" value="${old?.cookieCount??1}"></label></div><div class="form-section"><div class="form-section-head"><div><strong>Itens de embalagem</strong><small>${db.packaging.length?'Selecione embalagem e quantidade consumida.':'Cadastre embalagens primeiro na aba Insumos.'}</small></div><button class="secondary small" onclick="addFormatRow()" type="button">+ Embalagem</button></div><div id="formatPackRows" class="ingredient-editor"></div></div><div class="modal-footer"><button class="secondary" onclick="${onSaved?'manageSalesFormats()':'closeModal()'}">Cancelar</button><button class="primary" onclick="saveSalesFormat('${id||''}',${onSaved?'true':'false'})">Salvar formato</button></div>`;
+  $('#modal').innerHTML=`<div class="modal-header"><div><span class="kicker">FORMATOS REUTILIZÁVEIS</span><h2 id="modalTitle">${old?'Editar formato':'Novo formato de venda'}</h2><p>O formato pode ser atribuído a vários sabores. Editá-lo atualiza os sabores vinculados. A embalagem é opcional, então você também pode criar um formato sem custo adicional.</p></div><button class="close" onclick="${onSaved?'manageSalesFormats()':'closeModal()'}" aria-label="Fechar">×</button></div><div class="form-grid two"><label>Nome do formato<input id="formatName" value="${escapeAttr(old?.name||'')}" placeholder="Ex.: Delivery" required></label><label>Quantidade de cookies<input id="formatCookieCount" type="number" min="1" step="1" value="${old?.cookieCount??1}"></label><label>Custo adicional por cookie (R$) <button class="info-tip" data-info="Use para custos específicos deste canal, como o transporte para levar os cookies ao trabalho. Esse valor é multiplicado pela quantidade de cookies do formato.">i</button><input id="formatExtraCost" type="number" min="0" step="0.01" value="${old?.extraCostPerCookie??0}" placeholder="0,00"></label></div><div class="notice compact">Para Trabalho da Agatha, a referência inicial é R$ 10 por ida ÷ 12 cookies = R$ 0,84 por cookie. O valor fica fixo para a precificação e não precisa ser recalculado a cada viagem.</div><div class="form-section"><div class="form-section-head"><div><strong>Itens de embalagem</strong><small>${db.packaging.length?'Selecione embalagem e quantidade consumida.':'Cadastre embalagens primeiro na aba Insumos.'}</small></div><button class="secondary small" onclick="addFormatRow()" type="button">+ Embalagem</button></div><div id="formatPackRows" class="ingredient-editor"></div></div><div class="modal-footer"><button class="secondary" onclick="${onSaved?'manageSalesFormats()':'closeModal()'}">Cancelar</button><button class="primary" onclick="saveSalesFormat('${id||''}',${onSaved?'true':'false'})">Salvar formato</button></div>`;
   (old?.packaging||[]).forEach(row=>addFormatRow(row));if(!old?.packaging?.length)addFormatRow();openModal();
 }
 function addFormatRow(row={packagingId:'',quantity:1}) {
@@ -533,7 +546,7 @@ function addFormatRow(row={packagingId:'',quantity:1}) {
   target.insertAdjacentHTML('beforeend',`<div class="format-row-editor" data-format-row><select class="format-pack-select"><option value="">Selecionar embalagem</option>${options}</select><input class="format-pack-qty" type="number" min="0.001" step="0.001" value="${row.quantity??1}" aria-label="Quantidade de embalagem"><button class="remove-row" type="button" onclick="this.closest('[data-format-row]').remove()" aria-label="Remover embalagem">×</button></div>`);
 }
 function saveSalesFormat(id,fromManager=false) {
-  const item={id:id||uid('fmt'),name:$('#formatName').value.trim(),cookieCount:Math.max(1,Math.floor(num($('#formatCookieCount').value)||1)),packaging:$$('[data-format-row]',$('#formatPackRows')).map(row=>({packagingId:$('.format-pack-select',row).value,quantity:num($('.format-pack-qty',row).value)||1})).filter(row=>row.packagingId)};
+  const item={...(id?getItemById(db.salesFormats,id):{}),id:id||uid('fmt'),name:$('#formatName').value.trim(),cookieCount:Math.max(1,Math.floor(num($('#formatCookieCount').value)||1)),extraCostPerCookie:num($('#formatExtraCost').value),packaging:$$('[data-format-row]',$('#formatPackRows')).map(row=>({packagingId:$('.format-pack-select',row).value,quantity:num($('.format-pack-qty',row).value)||1})).filter(row=>row.packagingId)};
   if(!item.name){toast('Informe o nome do formato.','error');return;}
   const arr=db.salesFormats,idx=arr.findIndex(x=>x.id===id);if(idx>=0)arr[idx]=item;else arr.push(item);saveDB();closeModal();renderPricing();renderSettingsFormatSummary();renderStart();toast('Formato salvo.');
   if(fromManager)manageSalesFormats();
@@ -546,6 +559,11 @@ function deleteSalesFormat(id) {
 // BACKUP, IMPORTAÇÃO LEGADA E CUSTOS INDIRETOS
 function renderSettings() {
   $('#defaultMarkup').value=db.settings.defaultMarkup??3;
+  const trip=$('#workTransportTrip'); if(trip)trip.value=db.settings.workTransportPerTrip??10;
+  const minimum=$('#workMinimumCookies'); if(minimum)minimum.value=db.settings.workMinimumCookies??12;
+  const perCookie=Math.ceil((num(db.settings.workTransportPerTrip??10)/Math.max(1,Math.floor(num(db.settings.workMinimumCookies??12)||12)))*100)/100;
+  const workFormat=db.salesFormats.find(f=>String(f.name||'').trim().toLocaleLowerCase('pt-BR')==='trabalho da agatha'); if(workFormat && workFormat.isDefaultWorkFormat)workFormat.extraCostPerCookie=perCookie;
+  const summary=$('#workTransportSummary'); if(summary)summary.textContent=`Referência fixa: ${money(num(db.settings.workTransportPerTrip??10))} por ida ÷ ${Math.max(1,Math.floor(num(db.settings.workMinimumCookies??12)||12))} cookies = ${money(perCookie)} por cookie. Não será recalculada por viagem.`;
   renderIndirectCosts();renderSettingsFormatSummary();
   const legacyExists=(()=>{try{return !!localStorage.getItem(LEGACY_KEY);}catch{return false;}})();
   const status=$('#legacyStatus');
@@ -569,10 +587,22 @@ function saveIndirectCost(id) {
 }
 function deleteIndirectCost(id) {const cost=getItemById(db.settings.indirectCosts||[],id);if(!cost)return;if(!confirm(`Excluir o custo “${cost.name}”?`))return;db.settings.indirectCosts=db.settings.indirectCosts.filter(x=>x.id!==id);saveDB();renderSettings();renderCosts();renderPricing();renderStart();}
 
+$('#saveWorkTransportBtn').addEventListener('click',()=>{
+  db.settings.workTransportPerTrip=Math.max(0,num($('#workTransportTrip').value));
+  db.settings.workMinimumCookies=Math.max(1,Math.floor(num($('#workMinimumCookies').value)||12));
+  const perCookie=Math.ceil((db.settings.workTransportPerTrip/db.settings.workMinimumCookies)*100)/100;
+  let format=db.salesFormats.find(f=>String(f.name||'').trim().toLocaleLowerCase('pt-BR')==='trabalho da agatha');
+  if(!format){format={id:uid('fmt'),name:'Trabalho da Agatha',cookieCount:1,packaging:[],extraCostPerCookie:perCookie,isDefaultWorkFormat:true};db.salesFormats.push(format);}
+  format.extraCostPerCookie=perCookie;format.isDefaultWorkFormat=true;
+  db.products.forEach(product=>{product.formatIds=Array.isArray(product.formatIds)?product.formatIds:[];if(!product.formatIds.includes(format.id))product.formatIds.push(format.id);});
+  saveDB('Custo de transporte salvo');renderSettings();renderCosts();renderPricing();renderStart();
+  const summary=$('#workTransportSummary');if(summary)summary.textContent=`Referência fixa: ${money(db.settings.workTransportPerTrip)} por ida ÷ ${db.settings.workMinimumCookies} cookies = ${money(perCookie)} por cookie. Não será recalculada por viagem.`;
+  toast('Custo de transporte atualizado.');
+});
 $('#exportBtn').addEventListener('click',exportBackup);
 function exportBackup() {
   const payload={app:'Cookie Pricer',version:APP_VERSION,exportedAt:new Date().toISOString(),data:db};
-  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`cookie-pricer-backup-v3.1-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`cookie-pricer-backup-v3.2-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),500);
   toast('Backup exportado. Guarde o arquivo em um local seguro.');
 }
 $('#importInput').addEventListener('change',async event=>{
