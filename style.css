@@ -96,3 +96,6 @@ button.primary,button.secondary,button.ghost,.file-button,button.danger{border:1
   .modal-head-actions{flex-direction:column-reverse;align-items:flex-end}
   .data-table.cost-table{min-width:1000px}
 }
+
+/* V3.3: hierarquia das quatro áreas principais */
+.nav-label-bottom{margin-top:18px}.nav-label{line-height:1.5}

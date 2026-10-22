@@ -2,14 +2,14 @@
 
 const STORAGE_KEY = 'cookie-pricer-v3';
 const LEGACY_KEY = 'cookie-pricer-v1';
-const APP_VERSION = '3.2';
+const APP_VERSION = '3.3';
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 
 const EMPTY_DB = {
   schemaVersion: 3,
   ingredients: [], packaging: [], masses: [], fillings: [], products: [], kits: [], salesFormats: [],
-  settings: { defaultMarkup: 3, indirectCosts: [], workTransportPerTrip: 10, workMinimumCookies: 12 }
+  settings: { defaultMarkup: 3, indirectCosts: [], workTransportPerTrip: 10, workMinimumCookies: 12, laborHourlyRate:20, laborHoursBatch:4.5, laborYieldBatch:48 }
 };
 let db = loadDB();
 function ensureWorkFormat() {
@@ -96,8 +96,8 @@ function migrateLegacy(legacyInput) {
   imported.packaging = normalizeRows(old.packaging).map(x => ({...x, id:x.id||uid('pack')}));
   imported.salesFormats = normalizeRows(old.salesFormats).map(x => ({...x, id:x.id||uid('fmt'), packaging:normalizeRows(x.packaging)}));
   imported.settings.indirectCosts = normalizeRows(old.settings?.indirectCosts).map(x=>({...x,id:x.id||uid('ind')}));
-  if (num(old.settings?.energy)>0 && !imported.settings.indirectCosts.some(x=>x.legacyKey==='energy')) imported.settings.indirectCosts.push({id:uid('ind'),name:'Gás / energia (configuração antiga)',price:num(old.settings.energy),packageQty:1,packageUnit:'un',mode:'perRecipe',usage:1,legacyKey:'energy'});
-  if (num(old.settings?.labor)>0 && !imported.settings.indirectCosts.some(x=>x.legacyKey==='labor')) imported.settings.indirectCosts.push({id:uid('ind'),name:'Mão de obra (configuração antiga)',price:num(old.settings.labor),packageQty:1,packageUnit:'un',mode:'perRecipe',usage:1,legacyKey:'labor'});
+  if (num(old.settings?.energy)>0 && !imported.settings.indirectCosts.some(x=>x.legacyKey==='energy')) imported.settings.indirectCosts.push({id:uid('ind'),name:'Gás / energia (importado, revisar valor)',price:num(old.settings.energy),packageQty:1,packageUnit:'un',mode:'perRecipe',usage:1,legacyKey:'energy'});
+  if (num(old.settings?.labor)>0 && !imported.settings.indirectCosts.some(x=>x.legacyKey==='labor')) imported.settings.indirectCosts.push({id:uid('ind'),name:'Mão de obra antiga (valor preservado)',price:num(old.settings.labor),packageQty:1,packageUnit:'un',mode:'perRecipe',usage:1,legacyKey:'labor'});
   const oldMargin = Math.min(95,Math.max(1,num(old.settings?.targetMargin)||50));
   imported.settings.defaultMarkup = Math.min(20, Math.max(1, 1/(1-oldMargin/100)));
   const formatSignature = f => JSON.stringify({name:String(f?.name||'').trim().toLowerCase(),cookieCount:num(f?.cookieCount)||1,packaging:(f?.packaging||[]).map(p=>({packagingId:p.packagingId,quantity:num(p.quantity)||1}))});
@@ -212,7 +212,10 @@ function productStats(product) {
   const mass=massStats(getItemById(db.masses,product.massId));
   const filling=fillingStats(getItemById(db.fillings,product.fillingId));
   const indirectItems=(db.settings.indirectCosts||[]).map(item=>({item,batchCost:indirectCostValue(item),perCookie:mass.yieldUsed>0?indirectCostValue(item)/mass.yieldUsed:0}));
-  const allocatedIndirect=indirectItems.reduce((sum,row)=>sum+row.perCookie,0);
+  const configuredIndirect=indirectItems.reduce((sum,row)=>sum+row.perCookie,0);
+  const laborBatchCost=Math.max(0,num(db.settings.laborHourlyRate??20))*Math.max(0,num(db.settings.laborHoursBatch??4.5));
+  const laborPerCookie=mass.yieldUsed>0?laborBatchCost/mass.yieldUsed:0;
+  const allocatedIndirect=configuredIndirect+laborPerCookie;
   const ingredientCost=mass.costPerCookie+filling.costPerCookie;
   // Custos fixos, mão de obra e embalagem de versões anteriores são preservados nos dados,
   // mas não entram no novo cálculo automaticamente. Os dois primeiros irão para Ajustes;
@@ -231,7 +234,7 @@ function productStats(product) {
   const fee=Math.min(.95,num(product.platformFee));
   const platformPrice=price>0&&fee<1?price/(1-fee):0;
   const hasLegacyValues=legacyFixedCost>0||legacyLaborCost>0||legacyPackagingCost>0;
-  return {mass,filling,indirectItems,allocatedIndirect,ingredientCost,baseCost,total,legacyFixedCost,legacyLaborCost,legacyPackagingCost,hasLegacyValues,markup,suggestedPrice,price,profit,margin,realMarkup,fee,platformPrice};
+  return {mass,filling,indirectItems,allocatedIndirect,laborBatchCost,laborPerCookie,ingredientCost,baseCost,total,legacyFixedCost,legacyLaborCost,legacyPackagingCost,hasLegacyValues,markup,suggestedPrice,price,profit,margin,realMarkup,fee,platformPrice};
 }
 function formatPackagingCost(format) {
   return (format.packaging||[]).reduce((sum,row)=>{
@@ -250,11 +253,12 @@ function productDisplayName(id) { return getProduct(id)?.name || 'Sabor removido
 function navigate(page) {
   $$('.nav-item[data-page]').forEach(btn=>btn.classList.toggle('active',btn.dataset.page===page));
   $$('.page').forEach(section=>section.classList.toggle('active',section.id===`page-${page}`));
-  const meta={start:['ORGANIZE SUA PRODUÇÃO','Comece aqui'],ingredients:['BASE DE CÁLCULO','Insumos'],masses:['FICHA TÉCNICA','Massas'],fillings:['FICHA TÉCNICA','Recheios'],costs:['COMPOSIÇÃO DO CUSTO','Custo por cookie'],pricing:['DECISÃO DE VENDA','Preço'],settings:['SEUS DADOS','Backup e ajustes']}[page]||['COOKIE PRICER','Sistema'];
+  const meta={start:['PAINEL GERAL','Início'],ingredients:['PRODUÇÃO','Ingredientes'],packaging:['PREPARAR PARA VENDER','Embalagens e formatos'],masses:['FICHA TÉCNICA','Massas'],fillings:['FICHA TÉCNICA','Recheios'],costs:['COMPOSIÇÃO DO CUSTO','Custo por cookie'],pricing:['VENDA','Preço e lucro'],settings:['SEUS DADOS','Backup e ajustes']}[page]||['COOKIE PRICER','Sistema'];
   $('#pageEyebrow').textContent=meta[0]; $('#pageTitle').textContent=meta[1];
   renderPage(page);
 }
 $$('.nav-item[data-page]').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.page)));
+$('#manageFormatsPackagingBtn')?.addEventListener('click',()=>manageSalesFormats()); $('#manageFormatsPackagingBtn2')?.addEventListener('click',()=>manageSalesFormats());
 $$('[data-go]').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.go)));
 function renderPage(page) {
   if(page==='start') renderStart();
@@ -263,6 +267,7 @@ function renderPage(page) {
   if(page==='fillings') renderFillings();
   if(page==='costs') renderCosts();
   if(page==='pricing') renderPricing();
+  if(page==='packaging') renderPackagingPage();
   if(page==='settings') renderSettings();
 }
 
@@ -442,7 +447,7 @@ function openProductDetails(id) {
   const legacyWarning=s.hasLegacyValues?`<div class="notice compact legacy-cost-notice"><strong>Valores preservados do cadastro anterior, ainda não incluídos no novo cálculo:</strong><br>${s.legacyFixedCost>0?`Fixos antigos por cookie: ${money(s.legacyFixedCost)}. `:''}${s.legacyLaborCost>0?`Mão de obra antiga por cookie: ${money(s.legacyLaborCost)}. `:''}${s.legacyPackagingCost>0?`Embalagem antiga manual: ${money(s.legacyPackagingCost)}. `:''}Os custos de produção serão configurados em Ajustes, e a embalagem deve ser vinculada a um formato de venda para evitar duplicidade.</div>`:'';
   const formatHtml=formats.length?formats.map(format=>{
     const fs=productFormatStats(p,format);const packageRows=formatCostRows(format);
-    return `<article class="cost-detail-format"><div class="cost-detail-format-head"><div><h4>${escapeHtml(format.name)}</h4><p>${fs.count} cookie(s) por formato</p></div><div class="cost-detail-format-price"><span>Embalagem</span><strong>${money(fs.packCost)}</strong></div></div><div class="cost-detail-math"><div><span>Custo base × quantidade</span><strong>${money(s.baseCost*fs.count)}</strong></div><div><span>Embalagem do formato</span><strong>${money(fs.packCost)}</strong></div><div><span>Custo total do formato</span><strong>${money(fs.total)}</strong></div><div><span>Custo por cookie neste formato</span><strong>${money(fs.costPerCookie)}</strong></div><div><span>Preço sugerido do formato</span><strong>${money(fs.suggestedPrice)}</strong></div></div><details class="detail-disclosure"><summary>Ver composição da embalagem</summary><div class="detail-table-wrap"><table class="detail-table"><thead><tr><th>Embalagem</th><th>Quantidade</th><th>Custo</th></tr></thead><tbody>${packageRows||'<tr><td colspan="3">Sem itens de embalagem.</td></tr>'}</tbody></table></div></details></article>`;
+    return `<article class="cost-detail-format"><div class="cost-detail-format-head"><div><h4>${escapeHtml(format.name)}</h4><p>${fs.count} cookie(s) por formato</p></div><div class="cost-detail-format-price"><span>Embalagem</span><strong>${money(fs.packCost)}</strong></div></div><div class="cost-detail-math"><div><span>Custo base × quantidade</span><strong>${money(s.baseCost*fs.count)}</strong></div><div><span>Embalagem do formato</span><strong>${money(fs.packCost)}</strong></div><div><span>Transporte e outros adicionais do formato</span><strong>${money(fs.extraCost)}</strong></div><div><span>Custo total do formato</span><strong>${money(fs.total)}</strong></div><div><span>Custo por cookie neste formato</span><strong>${money(fs.costPerCookie)}</strong></div><div><span>Preço sugerido do formato</span><strong>${money(fs.suggestedPrice)}</strong></div></div><details class="detail-disclosure"><summary>Ver composição da embalagem</summary><div class="detail-table-wrap"><table class="detail-table"><thead><tr><th>Embalagem</th><th>Quantidade</th><th>Custo</th></tr></thead><tbody>${packageRows||'<tr><td colspan="3">Sem itens de embalagem.</td></tr>'}</tbody></table></div></details></article>`;
   }).join(''):'<div class="empty-table">Nenhum formato vinculado a este sabor. Edite o sabor e selecione os formatos cadastrados, ou crie um em Preço → Gerenciar formatos. O custo base não inclui embalagem.</div>';
   const activeIndirectRows=s.indirectItems.filter(({item})=>!item.deferredSetup&&item.legacyKey!=='labor');const pendingIndirectRows=s.indirectItems.filter(({item})=>item.deferredSetup||item.legacyKey==='labor');const indirectRows=[...activeIndirectRows.map(({item,batchCost,perCookie})=>`<tr><td>${escapeHtml(item.name)}</td><td>${money(batchCost)}</td><td>${money(perCookie)}</td></tr>`),...pendingIndirectRows.map(({item})=>`<tr><td>${escapeHtml(item.name)} <span class="muted-value">(antigo)</span></td><td>Pendente</td><td>Pendente</td></tr>`)].join('')||'<tr><td colspan="3" class="muted-value">Nenhum custo de produção configurado ainda.</td></tr>';
   $('#modal').innerHTML=`<div class="modal-header"><div><span class="kicker">FICHA DETALHADA</span><h2 id="modalTitle">${escapeHtml(p.name)}</h2><p>O custo base não inclui a embalagem de venda. Cada formato tem seu próprio custo final.</p></div><div class="modal-head-actions"><button class="secondary small" onclick="openProductModal('${p.id}')">Editar sabor</button><button class="close" onclick="closeModal()" aria-label="Fechar">×</button></div></div>
@@ -523,6 +528,7 @@ function renderFormatSummaries() {
   const target=$('#assignedFormatSummary');
   target.innerHTML=assigned.length?assigned.map(item=>`<article class="format-summary-card"><strong>${escapeHtml(item.product.name)} · ${escapeHtml(item.format.name)}</strong><small>${item.stats.count} cookie(s) · Embalagem ${money(item.stats.packCost)} · Transporte/outros ${money(item.stats.extraCost)} · Custo do formato ${money(item.stats.total)}</small><span class="format-count">Preço sugerido do formato: ${money(item.stats.suggestedPrice)} · ${money(item.stats.suggestedPrice/item.stats.count)} por cookie</span></article>`).join(''):'<div class="empty-table" style="grid-column:1/-1">Nenhum formato global vinculado a um sabor. Edite um sabor em “Custo por cookie” para vincular formatos.</div>';
 }
+function renderPackagingPage(){const target=$('#packagingFormatSummary');if(!target)return;target.innerHTML=db.salesFormats.length?db.salesFormats.map(f=>{const count=Math.max(1,Math.floor(num(f.cookieCount)||1));const packCost=formatPackagingCost(f);const extra=num(f.extraCostPerCookie)*count;const rows=(f.packaging||[]).map(row=>{const p=getItemById(db.packaging,row.packagingId);return p?`${escapeHtml(p.name)} × ${qtyFmt(row.quantity,3)} unidade(s) de embalagem`:'Embalagem removida';}).join(' · ')||'Sem embalagem cadastrada';return `<article class="format-summary-card"><strong>${escapeHtml(f.name)}</strong><small>${count} cookie(s) por formato · ${rows}</small><small>Embalagens: ${money(packCost)} por formato · Transporte/outros adicionais: ${money(extra)} por formato</small><span class="format-count">Custo adicional de preparo e venda: ${money(packCost+extra)} por formato (${money((packCost+extra)/count)} por cookie)</span></article>`;}).join(''):'<div class="empty-table">Nenhum formato cadastrado. Use “Gerenciar formatos” para criar o primeiro.</div>';}
 function renderSettingsFormatSummary() {
   const target=$('#settingsFormatSummary');if(!target)return;
   target.innerHTML=db.salesFormats.length?db.salesFormats.map(f=>`<div class="cost-item"><div><strong>${escapeHtml(f.name)}</strong><span>${f.cookieCount||1} cookie(s) · Adicional por cookie ${money(f.extraCostPerCookie)} · ${(f.packaging||[]).map(row=>{const p=getItemById(db.packaging,row.packagingId);return p?`${escapeHtml(p.name)} × ${row.quantity}`:'Embalagem removida';}).join(' + ')||'Sem itens de embalagem'}${db.kits.some(k=>k.formatId===f.id)?' · usado em kit':''}</span></div><div class="cost-item-right"><strong>${money(formatPackagingCost(f)+(num(f.extraCostPerCookie)*(num(f.cookieCount)||1)))}</strong><span>embalagem + adicionais do formato</span></div></div>`).join(''):'<div class="empty-table">Nenhum formato global cadastrado.</div>';
@@ -537,13 +543,13 @@ function renderFormatManagerList() {
 }
 function openSalesFormatModal(id=null,onSaved=null) {
   const old=id?getItemById(db.salesFormats,id):null;
-  $('#modal').innerHTML=`<div class="modal-header"><div><span class="kicker">FORMATOS REUTILIZÁVEIS</span><h2 id="modalTitle">${old?'Editar formato':'Novo formato de venda'}</h2><p>O formato pode ser atribuído a vários sabores. Editá-lo atualiza os sabores vinculados. A embalagem é opcional, então você também pode criar um formato sem custo adicional.</p></div><button class="close" onclick="${onSaved?'manageSalesFormats()':'closeModal()'}" aria-label="Fechar">×</button></div><div class="form-grid two"><label>Nome do formato<input id="formatName" value="${escapeAttr(old?.name||'')}" placeholder="Ex.: Delivery" required></label><label>Quantidade de cookies<input id="formatCookieCount" type="number" min="1" step="1" value="${old?.cookieCount??1}"></label><label>Custo adicional por cookie (R$) <button class="info-tip" data-info="Use para custos específicos deste canal, como o transporte para levar os cookies ao trabalho. Esse valor é multiplicado pela quantidade de cookies do formato.">i</button><input id="formatExtraCost" type="number" min="0" step="0.01" value="${old?.extraCostPerCookie??0}" placeholder="0,00"></label></div><div class="notice compact">Para Trabalho da Agatha, a referência inicial é R$ 10 por ida ÷ 12 cookies = R$ 0,84 por cookie. O valor fica fixo para a precificação e não precisa ser recalculado a cada viagem.</div><div class="form-section"><div class="form-section-head"><div><strong>Itens de embalagem</strong><small>${db.packaging.length?'Selecione embalagem e quantidade consumida.':'Cadastre embalagens primeiro na aba Insumos.'}</small></div><button class="secondary small" onclick="addFormatRow()" type="button">+ Embalagem</button></div><div id="formatPackRows" class="ingredient-editor"></div></div><div class="modal-footer"><button class="secondary" onclick="${onSaved?'manageSalesFormats()':'closeModal()'}">Cancelar</button><button class="primary" onclick="saveSalesFormat('${id||''}',${onSaved?'true':'false'})">Salvar formato</button></div>`;
+  $('#modal').innerHTML=`<div class="modal-header"><div><span class="kicker">FORMATOS REUTILIZÁVEIS</span><h2 id="modalTitle">${old?'Editar formato':'Novo formato de venda'}</h2><p>O formato pode ser atribuído a vários sabores. Editá-lo atualiza os sabores vinculados. A embalagem é opcional, então você também pode criar um formato sem custo adicional.</p></div><button class="close" onclick="${onSaved?'manageSalesFormats()':'closeModal()'}" aria-label="Fechar">×</button></div><div class="form-grid two"><label>Nome do formato<input id="formatName" value="${escapeAttr(old?.name||'')}" placeholder="Ex.: Delivery" required></label><label>Cookies neste formato / pedido<input id="formatCookieCount" type="number" min="1" step="1" value="${old?.cookieCount??1}"></label><label>Adicional por cookie (R$) <button class="info-tip" data-info="Use para custos específicos deste canal, como o transporte para levar os cookies ao trabalho. Esse valor é multiplicado pela quantidade de cookies do formato.">i</button><input id="formatExtraCost" type="number" min="0" step="0.01" value="${old?.extraCostPerCookie??0}" placeholder="0,00"></label></div><div class="notice compact">Para Trabalho da Agatha, a referência inicial é R$ 10 por ida ÷ 12 cookies = R$ 0,84 por cookie. O valor fica fixo para a precificação e não precisa ser recalculado a cada viagem.</div><div class="form-section"><div class="form-section-head"><div><strong>Itens de embalagem</strong><small>${db.packaging.length?'Informe quantas unidades de cada embalagem são usadas por formato/pedido.':'Cadastre embalagens primeiro na aba Insumos.'}</small></div><button class="secondary small" onclick="addFormatRow()" type="button">+ Embalagem</button></div><div id="formatPackRows" class="ingredient-editor"></div></div><div class="modal-footer"><button class="secondary" onclick="${onSaved?'manageSalesFormats()':'closeModal()'}">Cancelar</button><button class="primary" onclick="saveSalesFormat('${id||''}',${onSaved?'true':'false'})">Salvar formato</button></div>`;
   (old?.packaging||[]).forEach(row=>addFormatRow(row));if(!old?.packaging?.length)addFormatRow();openModal();
 }
 function addFormatRow(row={packagingId:'',quantity:1}) {
   const target=$('#formatPackRows');if(!target)return;
   const options=db.packaging.map(item=>`<option value="${item.id}" ${item.id===row.packagingId?'selected':''}>${escapeHtml(item.name)}</option>`).join('');
-  target.insertAdjacentHTML('beforeend',`<div class="format-row-editor" data-format-row><select class="format-pack-select"><option value="">Selecionar embalagem</option>${options}</select><input class="format-pack-qty" type="number" min="0.001" step="0.001" value="${row.quantity??1}" aria-label="Quantidade de embalagem"><button class="remove-row" type="button" onclick="this.closest('[data-format-row]').remove()" aria-label="Remover embalagem">×</button></div>`);
+  target.insertAdjacentHTML('beforeend',`<div class="format-row-editor" data-format-row><select class="format-pack-select"><option value="">Selecionar embalagem</option>${options}</select><input class="format-pack-qty" type="number" min="0.001" step="0.001" value="${row.quantity??1}" aria-label="Unidades de embalagem usadas neste formato"><button class="remove-row" type="button" onclick="this.closest('[data-format-row]').remove()" aria-label="Remover embalagem">×</button></div>`);
 }
 function saveSalesFormat(id,fromManager=false) {
   const item={...(id?getItemById(db.salesFormats,id):{}),id:id||uid('fmt'),name:$('#formatName').value.trim(),cookieCount:Math.max(1,Math.floor(num($('#formatCookieCount').value)||1)),extraCostPerCookie:num($('#formatExtraCost').value),packaging:$$('[data-format-row]',$('#formatPackRows')).map(row=>({packagingId:$('.format-pack-select',row).value,quantity:num($('.format-pack-qty',row).value)||1})).filter(row=>row.packagingId)};
@@ -559,6 +565,8 @@ function deleteSalesFormat(id) {
 // BACKUP, IMPORTAÇÃO LEGADA E CUSTOS INDIRETOS
 function renderSettings() {
   $('#defaultMarkup').value=db.settings.defaultMarkup??3;
+  $('#laborHourlyRate').value=db.settings.laborHourlyRate??20; $('#laborHoursBatch').value=db.settings.laborHoursBatch??4.5; $('#laborYieldBatch').value=db.settings.laborYieldBatch??48;
+  const laborSummary=$('#laborCostSummary'); if(laborSummary){const batch=num(db.settings.laborHourlyRate??20)*num(db.settings.laborHoursBatch??4.5);const yieldCount=Math.max(1,num(db.settings.laborYieldBatch??48));laborSummary.textContent=`Estimativa: ${money(batch)} por lote ÷ ${yieldCount} cookies = ${money(batch/yieldCount)} por cookie de referência. No custo de cada massa, o rateio usa o rendimento cadastrado para aquela massa.`;}
   const trip=$('#workTransportTrip'); if(trip)trip.value=db.settings.workTransportPerTrip??10;
   const minimum=$('#workMinimumCookies'); if(minimum)minimum.value=db.settings.workMinimumCookies??12;
   const perCookie=Math.ceil((num(db.settings.workTransportPerTrip??10)/Math.max(1,Math.floor(num(db.settings.workMinimumCookies??12)||12)))*100)/100;
@@ -587,6 +595,7 @@ function saveIndirectCost(id) {
 }
 function deleteIndirectCost(id) {const cost=getItemById(db.settings.indirectCosts||[],id);if(!cost)return;if(!confirm(`Excluir o custo “${cost.name}”?`))return;db.settings.indirectCosts=db.settings.indirectCosts.filter(x=>x.id!==id);saveDB();renderSettings();renderCosts();renderPricing();renderStart();}
 
+$('#saveLaborSettingsBtn')?.addEventListener('click',()=>{db.settings.laborHourlyRate=Math.max(0,num($('#laborHourlyRate').value));db.settings.laborHoursBatch=Math.max(0,num($('#laborHoursBatch').value));db.settings.laborYieldBatch=Math.max(1,Math.floor(num($('#laborYieldBatch').value)||48));saveDB('Mão de obra salva');renderSettings();renderCosts();renderPricing();renderStart();toast('Mão de obra atualizada.');});
 $('#saveWorkTransportBtn').addEventListener('click',()=>{
   db.settings.workTransportPerTrip=Math.max(0,num($('#workTransportTrip').value));
   db.settings.workMinimumCookies=Math.max(1,Math.floor(num($('#workMinimumCookies').value)||12));
