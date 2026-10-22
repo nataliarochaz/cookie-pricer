@@ -99,3 +99,17 @@ button.primary,button.secondary,button.ghost,.file-button,button.danger{border:1
 
 /* V3.3: hierarquia das quatro áreas principais */
 .nav-label-bottom{margin-top:18px}.nav-label{line-height:1.5}
+
+/* V3.5: layout mais enxuto e fontes um pouco maiores */
+:root { --font-size-base: 16px; }
+body { font-size: 16px; }
+p, .muted, .help-text, .notice, .settings-help { font-size: 14px; line-height: 1.45; }
+label, input, select, textarea, button { font-size: 15px; }
+h1 { font-size: clamp(26px, 3vw, 34px); }
+h2 { font-size: clamp(23px, 2.5vw, 30px); }
+h3 { font-size: 19px; }
+.card, .settings-card { padding: 20px; }
+.page-intro p { max-width: 68ch; }
+.kicker { letter-spacing: .08em; }
+
+.nav-note{padding:7px 12px 8px 38px;color:var(--muted);font-size:13px;line-height:1.35}
