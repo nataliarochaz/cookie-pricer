@@ -132,6 +132,11 @@ tbody tr:hover td { background: #fffaf2; }
 .qty-field { width: 100%; padding-right: 29px; }
 .unit-suffix { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: #82786d; font-size: 10px; pointer-events: none; }
 .recipe-line:last-child { margin-bottom: 0; }
+
+.packaging-kit-card .recipe-line { grid-template-columns: minmax(0,1fr) 150px 145px 34px; }
+.packaging-kit-card .packaging-line-head { grid-template-columns: minmax(0,1fr) 150px 145px 34px; }
+.packaging-kit-card .recipe-line .small { white-space: nowrap; }
+
 .recipe-line-head { color: #93877c; display: grid; grid-template-columns: minmax(0,1fr) 130px 34px; gap: 8px; font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: .5px; margin: 0 0 6px; }
 .recipe-add-line { margin-top: 10px; }
 .recipe-footer { display: flex; justify-content: flex-end; gap: 18px; flex-wrap: wrap; padding: 13px 20px; border-top: 1px solid #eee8df; background: #fbf8f3; }
@@ -192,6 +197,10 @@ tbody tr:hover td { background: #fffaf2; }
   .card-pad { padding: 17px; }
   .card-header, .card-body { padding-left: 15px; padding-right: 15px; }
   .recipe-list { padding-left: 15px; padding-right: 15px; }
+  .packaging-kit-card .recipe-line { grid-template-columns: minmax(0,1fr) 115px 34px; }
+  .packaging-kit-card .recipe-line > .small { display: none; }
+  .packaging-kit-card .packaging-line-head { grid-template-columns: minmax(0,1fr) 115px 34px; }
+  .packaging-line-head span:nth-child(3) { display: none; }
   .recipe-footer { padding-left: 15px; padding-right: 15px; }
   .home-price-row { grid-template-columns: minmax(90px,1fr) repeat(2,minmax(75px,.85fr)); gap: 8px; }
   .home-price-row .hide-mobile { display: none; }

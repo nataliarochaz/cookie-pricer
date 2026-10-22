@@ -52,22 +52,30 @@ const DEFAULT_STATE = {
     { id:'filling-traditional', name:'Tradicional', other:0, note:'', components:[{id:'fc-trad-milk',ingredientId:'ing-milk-choc',qty:22}] }
   ],
   cookies: [
-    {id:'cookie-nutella',name:'Nutella',doughId:'dough-traditional',fillingId:'filling-nutella',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:15,platformFee:0.27},
-    {id:'cookie-ovo',name:'Ovomaltine',doughId:'dough-chocolate',fillingId:'filling-ovo',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:15,platformFee:0.27},
-    {id:'cookie-triple',name:'Triplo Choco',doughId:'dough-chocolate',fillingId:'filling-triple',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:15,platformFee:0.27},
-    {id:'cookie-red-velvet',name:'Red Velvet',doughId:'dough-red-velvet',fillingId:'filling-red-velvet',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:12,platformFee:0.27},
-    {id:'cookie-dulce',name:'Doce de Leite',doughId:'dough-chocolate',fillingId:'filling-dulce',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:12,platformFee:0.27},
-    {id:'cookie-duo',name:'Duo',doughId:'dough-black',fillingId:'filling-duo',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:10,platformFee:0.27},
-    {id:'cookie-alpino',name:'Alpino',doughId:'dough-black',fillingId:'filling-alpino',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:16,platformFee:0.27},
-    {id:'cookie-kinder',name:'Kinder',doughId:'dough-chocolate',fillingId:'filling-kinder',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:18,platformFee:0.27},
-    {id:'cookie-brookie',name:'Brookie',doughId:'dough-traditional',fillingId:'filling-brookie',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:16,platformFee:0.27},
-    {id:'cookie-traditional',name:'Tradicional',doughId:'dough-traditional',fillingId:'filling-traditional',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:12,platformFee:0.27}
+    {id:'cookie-nutella',name:'Nutella',doughId:'dough-traditional',fillingId:'filling-nutella',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:15,platformFee:0.27},
+    {id:'cookie-ovo',name:'Ovomaltine',doughId:'dough-chocolate',fillingId:'filling-ovo',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:15,platformFee:0.27},
+    {id:'cookie-triple',name:'Triplo Choco',doughId:'dough-chocolate',fillingId:'filling-triple',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:15,platformFee:0.27},
+    {id:'cookie-red-velvet',name:'Red Velvet',doughId:'dough-red-velvet',fillingId:'filling-red-velvet',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:12,platformFee:0.27},
+    {id:'cookie-dulce',name:'Doce de Leite',doughId:'dough-chocolate',fillingId:'filling-dulce',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:12,platformFee:0.27},
+    {id:'cookie-duo',name:'Duo',doughId:'dough-black',fillingId:'filling-duo',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:10,platformFee:0.27},
+    {id:'cookie-alpino',name:'Alpino',doughId:'dough-black',fillingId:'filling-alpino',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:16,platformFee:0.27},
+    {id:'cookie-kinder',name:'Kinder',doughId:'dough-chocolate',fillingId:'filling-kinder',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:18,platformFee:0.27},
+    {id:'cookie-brookie',name:'Brookie',doughId:'dough-traditional',fillingId:'filling-brookie',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:16,platformFee:0.27},
+    {id:'cookie-traditional',name:'Tradicional',doughId:'dough-traditional',fillingId:'filling-traditional',packagingKitId:'pack-kit-default',fixed:1.5,labor:0,markup:3,currentPrice:12,platformFee:0.27}
   ],
   kits: [
     {id:'kit-4',name:'Caixa com 4',qty:4,baseCookieId:'cookie-traditional',discount:0.05},
     {id:'kit-6',name:'Caixa com 6',qty:6,baseCookieId:'cookie-traditional',discount:0.10},
     {id:'kit-12',name:'Caixa com 12',qty:12,baseCookieId:'cookie-traditional',discount:0.15}
-  ]
+  ],
+  packagings: [
+    {id:'pack-ref-individual',name:'Embalagem por cookie (referência da planilha)',price:1,packQty:1,unit:'un',note:'Valor de referência de R$ 1,00 da planilha original. Atualize com o preço da sua embalagem real.'}
+  ],
+  packagingKits: [
+    {id:'pack-kit-default',name:'Embalagem base (referência da planilha)',note:'Substitua os itens desta combinação pelas embalagens reais usadas no cookie.',components:[{id:'pack-component-default',packagingId:'pack-ref-individual',qty:1}]}
+  ],
+  unitBaseVersion: 2,
+  packagingModelVersion: 1
 };
 
 let state = null;
@@ -84,10 +92,35 @@ function percent(value, digits=1) { return `${decimal(num(value)*100,digits)}%`;
 function findById(list,id) { return list.find(item => item.id === id) || null; }
 function itemName(list,id,missing='Não definido') { return (findById(list,id)?.name) || missing; }
 function getIngredient(id) { return findById(state.ingredients,id); }
+function baseUnit(unit) { return unit === 'kg' ? 'g' : (unit || 'un'); }
+function normalizedPurchaseQty(ingredient) {
+  const qty = Math.max(0,num(ingredient?.packQty));
+  return ingredient?.unit === 'kg' ? qty * 1000 : qty;
+}
 function unitCost(ingredient) {
   if (!ingredient) return 0;
-  const qty = num(ingredient.packQty);
+  const qty = normalizedPurchaseQty(ingredient);
   return qty > 0 ? num(ingredient.price) / qty : 0;
+}
+function unitCostText(value, unit) {
+  const absolute=Math.abs(num(value));
+  const digits = unit === 'un' ? (absolute < 0.01 ? 4 : absolute < 0.1 ? 3 : 2) : 6;
+  return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:digits,maximumFractionDigits:digits}).format(num(value)) + ` / ${unit}`;
+}
+function packagingUnitCost(packaging) {
+  if (!packaging) return 0;
+  const qty = Math.max(0,num(packaging.packQty));
+  return qty > 0 ? Math.max(0,num(packaging.price))/qty : 0;
+}
+function packagingKitStats(kit) {
+  if (!kit) return {cost:0,missing:0};
+  let cost=0, missing=0;
+  (kit.components||[]).forEach(component=>{
+    const item=findById(state.packagings||[],component.packagingId);
+    if(!item){missing++;return;}
+    cost += Math.max(0,num(component.qty))*packagingUnitCost(item);
+  });
+  return {cost,missing};
 }
 function doughStats(dough) {
   if (!dough) return {cost:0,yield:0,unitCost:0,totalQty:0,missing:1};
@@ -123,7 +156,10 @@ function cookieStats(cookie) {
   const doughCost = doughStats(dough).unitCost;
   const fillingCost = fillingStats(filling).cost;
   const ingredientCost = doughCost + fillingCost;
-  const packaging = Math.max(0,num(cookie.packaging));
+  const selectedPackagingKit = findById(state.packagingKits||[],cookie.packagingKitId);
+  const packaging = cookie.packagingKitId !== undefined
+    ? packagingKitStats(selectedPackagingKit).cost
+    : Math.max(0,num(cookie.packaging)); // compatibilidade com dados antigos até a migração
   const fixed = Math.max(0,num(cookie.fixed));
   const labor = Math.max(0,num(cookie.labor));
   const total = ingredientCost + packaging + fixed + labor;
@@ -135,8 +171,8 @@ function cookieStats(cookie) {
   const actualMarkup = total > 0 ? currentPrice/total : 0;
   const fee = Math.max(0,Math.min(0.9999,num(cookie.platformFee)));
   const platformPrice = currentPrice / (1-fee);
-  return {doughCost,fillingCost,ingredientCost,packaging,fixed,labor,total,markup,suggestedPrice,currentPrice,profitToday,marginToday,actualMarkup,platformFee:fee,platformPrice,
-    needsDough:!dough,needsFilling:!filling};
+  return {doughCost,fillingCost,ingredientCost,packaging,packagingKit:selectedPackagingKit,fixed,labor,total,markup,suggestedPrice,currentPrice,profitToday,marginToday,actualMarkup,platformFee:fee,platformPrice,
+    needsDough:!dough,needsFilling:!filling,needsPackaging:cookie.packagingKitId !== undefined && !selectedPackagingKit};
 }
 function kitStats(kit) {
   const base = findById(state.cookies,kit.baseCookieId);
@@ -146,7 +182,54 @@ function kitStats(kit) {
   const discount = Math.max(0,Math.min(1,num(kit.discount)));
   return {baseCost,basePrice,qty,discount,cost:baseCost*qty,suggestedPrice:basePrice*qty*(1-discount),saving:basePrice*qty*discount};
 }
-function counts() { return {ingredients:state.ingredients.length,doughs:state.doughs.length,fillings:state.fillings.length,cookies:state.cookies.length,kits:state.kits.length}; }
+function counts() { return {ingredients:state.ingredients.length,doughs:state.doughs.length,fillings:state.fillings.length,packagings:(state.packagings||[]).length,packagingKits:(state.packagingKits||[]).length,cookies:state.cookies.length,kits:state.kits.length}; }
+function normalizeState(raw) {
+  const data=clone(raw||DEFAULT_STATE);
+  data.ingredients=Array.isArray(data.ingredients)?data.ingredients:[];
+  data.doughs=Array.isArray(data.doughs)?data.doughs:[];
+  data.fillings=Array.isArray(data.fillings)?data.fillings:[];
+  data.cookies=Array.isArray(data.cookies)?data.cookies:[];
+  data.kits=Array.isArray(data.kits)?data.kits:[];
+  data.packagings=Array.isArray(data.packagings)?data.packagings:[];
+  data.packagingKits=Array.isArray(data.packagingKits)?data.packagingKits:[];
+
+  // Older versions converted recipe quantities to kg when the purchase unit was changed.
+  // Recipe quantities are now always g/ml/un, so restore quantities of kg-purchased items to grams once.
+  if(data.unitBaseVersion !== 2) {
+    const kgIds=new Set(data.ingredients.filter(item=>item.unit==='kg').map(item=>item.id));
+    [...data.doughs,...data.fillings].forEach(recipe=>(recipe.components||[]).forEach(comp=>{
+      if(kgIds.has(comp.ingredientId)) comp.qty=Number((Math.max(0,num(comp.qty))*1000).toFixed(6));
+    }));
+    data.unitBaseVersion=2;
+  }
+
+  // Migrate the old per-cookie packaging amount to editable packaging items and a default kit.
+  if(data.packagingModelVersion !== 1) {
+    const kitByCost=new Map();
+    data.cookies.forEach(cookie=>{
+      if(cookie.packagingKitId && data.packagingKits.some(k=>k.id===cookie.packagingKitId)) { delete cookie.packaging; return; }
+      const legacyCost=Math.max(0,num(cookie.packaging));
+      if(legacyCost===0) { cookie.packagingKitId=''; delete cookie.packaging; return; }
+      const key=legacyCost.toFixed(6);
+      let kit=kitByCost.get(key);
+      if(!kit) {
+        let item=data.packagings.find(p=>p.migratedLegacyCost===key);
+        if(!item) {
+          item={id:makeId('packaging'),name:`Embalagem base antiga (${money(legacyCost)})`,price:legacyCost,packQty:1,unit:'un',note:'Migrado do custo por cookie da versão anterior. Atualize pelo preço real.',migratedLegacyCost:key};
+          data.packagings.push(item);
+        }
+        kit={id:makeId('pack-kit'),name:`Embalagem migrada (${money(legacyCost)})`,note:'Migrado automaticamente do valor antigo por cookie. Edite os itens para refletir sua embalagem real.',components:[{id:makeId('pack-component'),packagingId:item.id,qty:1}]};
+        data.packagingKits.push(kit); kitByCost.set(key,kit);
+      }
+      cookie.packagingKitId=kit.id;
+      delete cookie.packaging;
+    });
+    data.packagingModelVersion=1;
+  } else {
+    data.cookies.forEach(cookie=>{ if(cookie.packagingKitId===undefined) cookie.packagingKitId=''; delete cookie.packaging; });
+  }
+  return data;
+}
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -161,10 +244,17 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.version === 1 && Array.isArray(parsed.ingredients)) return parsed;
+      if (parsed && Array.isArray(parsed.ingredients)) {
+        const normalized=normalizeState(parsed);
+        // Persistir a migração uma única vez evita reconverter unidades a cada recarga.
+        if (JSON.stringify(normalized)!==JSON.stringify(parsed)) {
+          try { localStorage.setItem(STORAGE_KEY,JSON.stringify(normalized)); } catch (_) { /* mantém os dados migrados em memória se o armazenamento estiver indisponível */ }
+        }
+        return normalized;
+      }
     }
   } catch (err) { /* use fresh defaults below */ }
-  return clone(DEFAULT_STATE);
+  return normalizeState(DEFAULT_STATE);
 }
 function setView(view) {
   currentView = view;
@@ -197,13 +287,13 @@ function select(entity,id,field,value,items,options={}) {
 function render() {
   const main = document.getElementById('main-content');
   if (!main) return;
-  const views = {home:renderHome,ingredients:renderIngredients,doughs:renderDoughs,fillings:renderFillings,cookies:renderCookies,prices:renderPrices};
+  const views = {home:renderHome,ingredients:renderIngredients,doughs:renderDoughs,fillings:renderFillings,packaging:renderPackaging,cookies:renderCookies,prices:renderPrices};
   main.innerHTML = (views[currentView] || renderHome)();
 }
 function renderHome() {
   const c = counts();
   const computed = state.cookies.map(cookie=>({cookie,stats:cookieStats(cookie)}));
-  const missing = computed.filter(x=>x.stats.needsDough||x.stats.needsFilling).length;
+  const missing = computed.filter(x=>x.stats.needsDough||x.stats.needsFilling||x.stats.needsPackaging).length;
   return `${pageHeading('PAINEL INICIAL','Sua ficha técnica, conectada.','Edite os cadastros uma vez e acompanhe automaticamente o custo e o preço de cada sabor.',`<button class="button button-primary" data-action="go" data-view="ingredients">Atualizar insumos</button>`)}
     <div class="grid grid-4">
       <div class="card kpi"><div class="kpi-label">Insumos cadastrados</div><div class="kpi-value">${c.ingredients}</div><div class="kpi-caption">Preços por ${'g, ml ou unidade'}</div></div>
@@ -215,7 +305,7 @@ function renderHome() {
     ${missing?`<div class="notice notice-danger" style="margin-top:13px">${missing} sabor(es) estão sem massa ou recheio associado. Revise a aba Custo por cookie para completar os vínculos.</div>`:''}
     <div class="section-head"><div><h2>Resumo por sabor</h2><p>Valores calculados a partir dos dados cadastrados.</p></div><button class="button button-quiet" data-action="go" data-view="prices">Ver precificação ↗</button></div>
     <div class="card card-pad"><div class="home-price-row"><div class="home-price-label">Sabor</div><div class="home-price-label">Custo total</div><div class="home-price-label">Preço sugerido</div><div class="home-price-label hide-mobile">Preço atual</div></div>
-      <div class="home-price-list">${computed.map(({cookie,stats})=>`<div class="home-price-row"><div>${esc(cookie.name)}${stats.needsDough||stats.needsFilling?'<small class="price-bad">Vínculo pendente</small>':''}</div><div class="money">${money(stats.total)}</div><div class="money strong">${money(stats.suggestedPrice)}</div><div class="money hide-mobile">${money(stats.currentPrice)}</div></div>`).join('') || '<div class="empty-state">Cadastre seu primeiro sabor na aba Custo por cookie.</div>'}</div>
+      <div class="home-price-list">${computed.map(({cookie,stats})=>`<div class="home-price-row"><div>${esc(cookie.name)}${stats.needsDough||stats.needsFilling||stats.needsPackaging?'<small class="price-bad">Vínculo pendente</small>':''}</div><div class="money">${money(stats.total)}</div><div class="money strong">${money(stats.suggestedPrice)}</div><div class="money hide-mobile">${money(stats.currentPrice)}</div></div>`).join('') || '<div class="empty-state">Cadastre seu primeiro sabor na aba Custo por cookie.</div>'}</div>
     </div>
     <div class="section-head"><div><h2>Fluxo de trabalho</h2><p>Atualize a base, depois confira os resultados.</p></div></div>
     <div class="grid grid-3">
@@ -231,24 +321,25 @@ function renderIngredients() {
     <td class="num">${input('ingredient',ing.id,'price',ing.price,{type:'number',step:'0.01',min:0,className:'field field-sm field-money'})}</td>
     <td class="num">${input('ingredient',ing.id,'packQty',ing.packQty,{type:'number',step:'0.01',min:0,className:'field field-sm field-number'})}</td>
     <td>${select('ingredient',ing.id,'unit',ing.unit,[{id:'g',name:'g'},{id:'kg',name:'kg'},{id:'ml',name:'ml'},{id:'un',name:'un'}],{className:'field field-sm field-select'})}</td>
-    <td class="num strong money">${money(unitCost(ing))}<div class="muted small">por ${esc(ing.unit||'un')}</div></td>
+    <td class="num strong money">${unitCostText(unitCost(ing),baseUnit(ing.unit))}</td>
     <td>${input('ingredient',ing.id,'note',ing.note||'',{className:'field field-sm',placeholder:'Observação'})}</td>
     <td>${actionButtons('ingredient',ing.id)}</td>
   </tr>`).join('');
-  return `${pageHeading('BASE DE CUSTOS','Insumos','Cadastre o preço pago, a quantidade da embalagem e a unidade (g, kg, ml ou un). Ao alternar entre g e kg, as quantidades existentes são convertidas automaticamente.',`<button class="button button-primary" data-action="add" data-type="ingredient">+ Novo insumo</button>`)}
+  return `${pageHeading('BASE DE CUSTOS','Insumos','Informe quanto pagou e a quantidade comprada. Se comprar em kg, o preço é convertido automaticamente para R$/g; nas receitas, a quantidade continua sendo informada em g, ml ou unidade.',`<button class="button button-primary" data-action="add" data-type="ingredient">+ Novo insumo</button>`)}
     <div class="card"><div class="card-header"><div><h2>Lista de insumos</h2><p>${state.ingredients.length} itens cadastrados · os valores alimentam as massas e os recheios.</p></div><span class="pill pill-green">Cálculo automático</span></div>
-      <div class="table-wrap"><table><thead><tr><th>Insumo</th><th class="num">Preço pago (R$)</th><th class="num">Qtd. embalagem</th><th>Unidade</th><th class="num">Preço por unidade</th><th>Observação</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="empty-state">Nenhum insumo cadastrado.</div></td></tr>'}</tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Insumo</th><th class="num">Preço pago (R$)</th><th class="num">Qtd. embalagem</th><th>Unidade</th><th class="num">Preço por unidade padronizada</th><th>Observação</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="empty-state">Nenhum insumo cadastrado.</div></td></tr>'}</tbody></table></div>
     </div>
-    <p class="bottom-note">Exemplo: uma embalagem de 1.000 g por R$ 10,00 custa R$ 0,01/g. Para ovos, informe a quantidade em unidades e use “un” como unidade de medida.</p>`;
+    <p class="bottom-note">Exemplo: 1 kg por R$ 3,99 corresponde a R$ 0,003990 por grama. A unidade kg serve apenas para facilitar o cadastro da compra; receitas sempre usam g, ml ou un.</p>`;
 }
 function componentRows(type, recipe, components) {
   const entity = type==='dough'?'doughComponent':'fillingComponent';
   const removeAction = type==='dough'?'remove-dough-component':'remove-filling-component';
   const rows = components.map(comp=>{
     const ing = getIngredient(comp.ingredientId);
+    const rowUnit = baseUnit(ing?.unit);
     return `<div class="recipe-line">
       ${select(entity,recipe.id,'ingredientId',comp.ingredientId,state.ingredients.map(i=>({id:i.id,name:i.name})),{className:'field field-sm field-select',placeholder:'Selecione insumo',allowBlank:true,subId:comp.id})}
-      <div class="qty-control">${input(entity,recipe.id,'qty',comp.qty,{type:'number',step:ing?.unit==='kg'?'0.0001':'0.01',min:0,className:'field field-sm field-number qty-field',subId:comp.id})}<span class="unit-suffix">${esc(ing?.unit||'un')}</span></div>
+      <div class="qty-control">${input(entity,recipe.id,'qty',comp.qty,{type:'number',step:rowUnit==='un'?'1':'0.01',min:0,className:'field field-sm field-number qty-field',subId:comp.id})}<span class="unit-suffix">${esc(rowUnit)}</span></div>
       <button class="button button-danger button-icon" title="Remover ingrediente da receita" aria-label="Remover ingrediente" data-action="${removeAction}" data-id="${esc(recipe.id)}" data-subid="${esc(comp.id)}">×</button>
     </div>`;
   }).join('');
@@ -262,7 +353,7 @@ function renderDoughs() {
         <div class="recipe-summary"><div class="recipe-stat"><span>Rendimento</span>${input('dough',dough.id,'yield',dough.yield,{type:'number',step:'1',min:0,className:'field field-sm field-number'})}</div><div class="recipe-stat"><span>Custo da receita</span><strong>${money(stats.cost)}</strong></div><div class="recipe-stat"><span>Custo por cookie</span><strong>${money(stats.unitCost)}</strong></div></div>
         <div class="actions-cell"><button class="button button-quiet button-icon" title="Duplicar massa" aria-label="Duplicar massa" data-action="duplicate" data-type="dough" data-id="${esc(dough.id)}">⧉</button><button class="button button-danger button-icon" title="Excluir massa" aria-label="Excluir massa" data-action="delete" data-type="dough" data-id="${esc(dough.id)}">×</button></div>
       </div>
-      <div class="recipe-list"><div class="recipe-list-top"><div><h3>Ingredientes da receita</h3><div class="muted small">A quantidade usa a unidade cadastrada em Insumos.</div></div><button class="button button-quiet button-small" data-action="add-dough-component" data-id="${esc(dough.id)}">+ Ingrediente</button></div>
+      <div class="recipe-list"><div class="recipe-list-top"><div><h3>Ingredientes da receita</h3><div class="muted small">Informe em g, ml ou un. Mesmo comprando o insumo em kg, a receita usa gramas.</div></div><button class="button button-quiet button-small" data-action="add-dough-component" data-id="${esc(dough.id)}">+ Ingrediente</button></div>
         ${componentRows('dough',dough,dough.components||[])}
       </div>
       <div class="recipe-footer"><span>Quantidade total registrada: <strong>${decimal(stats.totalQty,2)}</strong></span><span>Rendimento: <strong>${decimal(stats.yield,0)} cookies</strong></span><span>Custo da receita: <strong>${money(stats.cost)}</strong></span></div>
@@ -280,7 +371,7 @@ function renderFillings() {
         <div class="recipe-summary"><div class="recipe-stat"><span>Insumos na composição</span><strong>${(filling.components||[]).length}</strong></div><div class="recipe-stat"><span>Outros custos</span><strong>${money(stats.other)}</strong></div><div class="recipe-stat"><span>Custo por cookie</span><strong>${money(stats.cost)}</strong></div></div>
         <div class="actions-cell"><button class="button button-quiet button-icon" title="Duplicar recheio" aria-label="Duplicar recheio" data-action="duplicate" data-type="filling" data-id="${esc(filling.id)}">⧉</button><button class="button button-danger button-icon" title="Excluir recheio" aria-label="Excluir recheio" data-action="delete" data-type="filling" data-id="${esc(filling.id)}">×</button></div>
       </div>
-      <div class="recipe-list"><div class="recipe-list-top"><div><h3>Composição do recheio</h3><div class="muted small">Informe a quantidade usada em um cookie. Para custo direto, use “Outros”.</div></div><button class="button button-quiet button-small" data-action="add-filling-component" data-id="${esc(filling.id)}">+ Ingrediente</button></div>
+      <div class="recipe-list"><div class="recipe-list-top"><div><h3>Composição do recheio</h3><div class="muted small">Informe a quantidade usada em um cookie, sempre em g, ml ou un. Para custo direto, use “Outros”.</div></div><button class="button button-quiet button-small" data-action="add-filling-component" data-id="${esc(filling.id)}">+ Ingrediente</button></div>
         ${componentRows('filling',filling,filling.components||[])}
         <div class="divider"></div><div class="form-grid"><div class="form-field"><label class="label">Outros custos por cookie (R$)</label>${input('filling',filling.id,'other',filling.other,{type:'number',step:'0.01',min:0,className:'field field-money'})}<div class="helper">Valor direto usado pela planilha original para recheios não pesados.</div></div><div class="form-field" style="grid-column:span 2"><label class="label">Observação</label>${input('filling',filling.id,'note',filling.note||'',{className:'field',placeholder:'Opcional'})}</div></div>
       </div>
@@ -291,6 +382,50 @@ function renderFillings() {
     <div class="stack">${cards||'<div class="empty-state"><strong>Nenhum recheio cadastrado</strong>Adicione um recheio para começar.</div>'}</div>
     <p class="bottom-note">Custo por cookie = soma de quantidade usada × preço por unidade dos insumos + outros custos por cookie.</p>`;
 }
+function packagingComponentRows(kit) {
+  const rows=(kit.components||[]).map(component=>{
+    const item=findById(state.packagings,component.packagingId);
+    return `<div class="recipe-line">
+      ${select('packagingComponent',kit.id,'packagingId',component.packagingId,state.packagings.map(p=>({id:p.id,name:p.name})),{className:'field field-sm field-select',placeholder:'Selecione embalagem',allowBlank:true,subId:component.id})}
+      <div class="qty-control">${input('packagingComponent',kit.id,'qty',component.qty,{type:'number',step:'0.01',min:0,className:'field field-sm field-number qty-field',subId:component.id})}<span class="unit-suffix">un/cookie</span></div>
+      <div class="small muted num">${item?unitCostText(packagingUnitCost(item),'un'):'Sem embalagem selecionada'}</div>
+      <button class="button button-danger button-icon" title="Remover item do kit" aria-label="Remover embalagem do kit" data-action="remove-packaging-component" data-id="${esc(kit.id)}" data-subid="${esc(component.id)}">×</button>
+    </div>`;
+  }).join('');
+  return `<div class="recipe-line-head packaging-line-head"><span>Item de embalagem</span><span>Quantidade por cookie</span><span>Custo unitário</span><span></span></div>${rows||'<p class="muted small">Nenhuma embalagem nesta combinação.</p>'}`;
+}
+function renderPackaging() {
+  const rows=state.packagings.map(item=>`<tr>
+    <td class="name-cell">${input('packaging',item.id,'name',item.name,{className:'field field-sm field-name'})}</td>
+    <td class="num">${input('packaging',item.id,'price',item.price,{type:'number',step:'0.01',min:0,className:'field field-sm field-money'})}</td>
+    <td class="num">${input('packaging',item.id,'packQty',item.packQty,{type:'number',step:'1',min:0,className:'field field-sm field-number'})}</td>
+    <td class="num strong money">${unitCostText(packagingUnitCost(item),'un')}</td>
+    <td>${input('packaging',item.id,'note',item.note||'',{className:'field field-sm',placeholder:'Observação'})}</td>
+    <td>${actionButtons('packaging',item.id)}</td>
+  </tr>`).join('');
+  const kits=state.packagingKits.map(kit=>{
+    const stats=packagingKitStats(kit);
+    return `<section class="card recipe-card packaging-kit-card">
+      <div class="card-header"><div style="flex:1;min-width:190px"><label class="label">Nome do kit de embalagem</label>${input('packagingKit',kit.id,'name',kit.name,{className:'field field-name'})}<div class="helper">${esc(kit.note||'Combinação de embalagens usada em um cookie.')}</div></div>
+        <div class="recipe-summary"><div class="recipe-stat"><span>Itens</span><strong>${(kit.components||[]).length}</strong></div><div class="recipe-stat"><span>Custo por cookie</span><strong>${money(stats.cost)}</strong></div></div>${actionButtons('packagingKit',kit.id)}
+      </div>
+      <div class="recipe-list"><div class="recipe-list-top"><div><h3>Composição da embalagem</h3><div class="muted small">Combine sacos, etiquetas, fitas e outros itens. A quantidade é por cookie; use frações se uma embalagem atender a vários cookies.</div></div><button class="button button-quiet button-small" data-action="add-packaging-component" data-id="${esc(kit.id)}">+ Item de embalagem</button></div>
+        ${packagingComponentRows(kit)}
+        <div class="divider"></div><div class="form-grid"><div class="form-field" style="grid-column:span 2"><label class="label">Observação do kit</label>${input('packagingKit',kit.id,'note',kit.note||'',{className:'field',placeholder:'Opcional'})}</div></div>
+      </div>
+      <div class="recipe-footer"><span>Custo calculado por cookie: <strong>${money(stats.cost)}</strong></span>${stats.missing?`<span class="price-bad">${stats.missing} item(ns) sem embalagem associada</span>`:''}</div>
+    </section>`;
+  }).join('');
+  return `${pageHeading('BASE DE CUSTOS','Embalagens','Cadastre cada embalagem comprada. Depois crie combinações e selecione o kit usado em cada sabor.',`<button class="button button-primary" data-action="add" data-type="packaging">+ Nova embalagem</button>`)}
+    <div class="card"><div class="card-header"><div><h2>Embalagens compradas</h2><p>${state.packagings.length} itens · informe o preço pago e quantas unidades vieram na compra.</p></div><span class="pill pill-green">Custo unitário automático</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Embalagem</th><th class="num">Preço pago (R$)</th><th class="num">Qtd. comprada (un)</th><th class="num">Preço por unidade</th><th>Observação</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6"><div class="empty-state">Nenhuma embalagem cadastrada.</div></td></tr>'}</tbody></table></div>
+      <div class="card-body"><div class="notice">O cadastro inicial “Embalagem por cookie” preserva o valor de referência de R$ 1,00 da planilha anterior. Atualize esse registro pelo preço real ou cadastre suas embalagens reais.</div></div>
+    </div>
+    <div class="section-head"><div><h2>Kits de embalagem</h2><p>Monte combinações reutilizáveis. O custo por cookie é a soma do custo de cada item × quantidade usada.</p></div><button class="button button-primary" data-action="add" data-type="packagingKit">+ Novo kit de embalagem</button></div>
+    <div class="stack">${kits||'<div class="empty-state"><strong>Nenhum kit de embalagem</strong>Cadastre um kit para combinar suas embalagens.</div>'}</div>
+    <p class="bottom-note">Os kits de embalagem são independentes dos kits de venda. Se uma caixa acomoda quatro cookies, você pode considerar 0,25 unidade dessa caixa por cookie ou criar uma composição apropriada para o kit de venda.</p>`;
+}
+
 function renderCookies() {
   const rows = state.cookies.map(cookie=>{
     const stats = cookieStats(cookie);
@@ -301,17 +436,17 @@ function renderCookies() {
       <td>${select('cookie',cookie.id,'fillingId',cookie.fillingId,state.fillings.map(x=>({id:x.id,name:x.name})),{className:'field field-sm field-select',placeholder:'Sem recheio',allowBlank:true})}</td>
       <td class="num money">${money(stats.fillingCost)}</td>
       <td class="num money">${money(stats.ingredientCost)}</td>
-      <td class="num">${input('cookie',cookie.id,'packaging',cookie.packaging,{type:'number',step:'0.01',min:0,className:'field field-sm field-money'})}</td>
+      <td>${select('cookie',cookie.id,'packagingKitId',cookie.packagingKitId||'',state.packagingKits.map(x=>({id:x.id,name:x.name})),{className:'field field-sm field-select',placeholder:'Sem embalagem',allowBlank:true})}<div class="muted small num">${money(stats.packaging)}</div></td>
       <td class="num">${input('cookie',cookie.id,'fixed',cookie.fixed,{type:'number',step:'0.01',min:0,className:'field field-sm field-money'})}</td>
       <td class="num">${input('cookie',cookie.id,'labor',cookie.labor,{type:'number',step:'0.01',min:0,className:'field field-sm field-money'})}</td>
-      <td class="num strong money">${money(stats.total)}${stats.needsDough||stats.needsFilling?'<div class="small price-bad">Vínculo pendente</div>':''}</td>
+      <td class="num strong money">${money(stats.total)}${stats.needsDough||stats.needsFilling||stats.needsPackaging?'<div class="small price-bad">Vínculo pendente</div>':''}</td>
       <td>${actionButtons('cookie',cookie.id)}</td>
     </tr>`;
   }).join('');
-  return `${pageHeading('CUSTO DO PRODUTO','Custo por cookie','Combine uma massa e um recheio para cada sabor. Embalagem, custos fixos e mão de obra são valores por cookie, conforme a lógica da planilha.',`<button class="button button-primary" data-action="add" data-type="cookie">+ Novo sabor</button>`)}
+  return `${pageHeading('CUSTO DO PRODUTO','Custo por cookie','Combine massa, recheio e um kit de embalagem previamente configurado. O custo da embalagem é calculado pelos itens que compõem o kit.',`<button class="button button-primary" data-action="add" data-type="cookie">+ Novo sabor</button>`)}
     <div class="card"><div class="card-header"><div><h2>Ficha de custos dos sabores</h2><p>${state.cookies.length} sabores · os custos de massa e recheio vêm das respectivas abas.</p></div><span class="pill pill-green">Atualização automática</span></div>
-      <div class="table-wrap"><table><thead><tr><th>Sabor</th><th>Massa usada</th><th class="num">Custo da massa</th><th>Recheio</th><th class="num">Custo do recheio</th><th class="num">Ingredientes</th><th class="num">Embalagem (R$)</th><th class="num">Fixos (R$)</th><th class="num">Mão de obra (R$)</th><th class="num">Custo total</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="11"><div class="empty-state">Nenhum sabor cadastrado.</div></td></tr>'}</tbody></table></div>
-      <div class="card-body"><div class="notice">Embalagem, fixos e mão de obra são lançados como custo por cookie. Para manter a mesma lógica da planilha, o sistema não divide esses três campos por lote automaticamente.</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Sabor</th><th>Massa usada</th><th class="num">Custo da massa</th><th>Recheio</th><th class="num">Custo do recheio</th><th class="num">Ingredientes</th><th>Kit de embalagem</th><th class="num">Fixos (R$)</th><th class="num">Mão de obra (R$)</th><th class="num">Custo total</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="11"><div class="empty-state">Nenhum sabor cadastrado.</div></td></tr>'}</tbody></table></div>
+      <div class="card-body"><div class="notice">O custo do kit de embalagem vem da aba Embalagens. Fixos e mão de obra continuam sendo valores por cookie, como na planilha original.</div></div>
     </div>`;
 }
 function renderPrices() {
@@ -360,21 +495,23 @@ function showConfirm(title,description,onConfirm,confirmText='Excluir item') {
   document.body.appendChild(modal);
 }
 function duplicateRecord(type,id) {
-  let source, list, prefix;
+  let list,source,prefix;
   if (type==='ingredient') { list=state.ingredients; source=findById(list,id); prefix='ing'; }
   if (type==='dough') { list=state.doughs; source=findById(list,id); prefix='dough'; }
   if (type==='filling') { list=state.fillings; source=findById(list,id); prefix='filling'; }
   if (type==='cookie') { list=state.cookies; source=findById(list,id); prefix='cookie'; }
   if (type==='kit') { list=state.kits; source=findById(list,id); prefix='kit'; }
+  if (type==='packaging') { list=state.packagings; source=findById(list,id); prefix='packaging'; }
+  if (type==='packagingKit') { list=state.packagingKits; source=findById(list,id); prefix='pack-kit'; }
   if (!source || !list) return;
   const copy = clone(source); copy.id=makeId(prefix);
   copy.name = `${source.name || 'Item'} (cópia)`;
-  if (type==='dough' || type==='filling') copy.components=(source.components||[]).map(c=>({...c,id:makeId(type==='dough'?'dc':'fc')}));
+  if (type==='dough' || type==='filling' || type==='packagingKit') copy.components=(source.components||[]).map(c=>({...c,id:makeId(type==='dough'?'dc':type==='filling'?'fc':'pack-component')}));
   list.splice(list.findIndex(x=>x.id===id)+1,0,copy);
   saveState(); render(); showToast('Item duplicado.');
 }
 function deleteRecord(type,id) {
-  const map={ingredient:'ingredients',dough:'doughs',filling:'fillings',cookie:'cookies',kit:'kits'};
+  const map={ingredient:'ingredients',dough:'doughs',filling:'fillings',cookie:'cookies',kit:'kits',packaging:'packagings',packagingKit:'packagingKits'};
   const list=state[map[type]]; const item=findById(list,id); if(!item) return;
   const name=item.name || 'este item';
   let message='O item será removido do cadastro.';
@@ -382,7 +519,9 @@ function deleteRecord(type,id) {
   if (type==='dough') message=`“${name}” será removida. Os sabores que a utilizam ficarão sem massa associada, até você escolher outra.`;
   if (type==='filling') message=`“${name}” será removido. Os sabores que o utilizam ficarão sem recheio associado, até você escolher outro.`;
   if (type==='cookie') message=`“${name}” será removido da ficha de custos e da precificação. Kits que o usam como base ficarão sem sabor base.`;
-  if (type==='kit') message=`“${name}” será removido dos kits cadastrados.`;
+  if (type==='kit') message=`“${name}” será removido dos kits de venda cadastrados.`;
+  if (type==='packaging') message=`“${name}” será removida e retirada de todas as combinações de embalagens que a utilizam.`;
+  if (type==='packagingKit') message=`“${name}” será removido. Os sabores que o utilizam ficarão sem kit de embalagem, até você selecionar outro.`;
   showConfirm('Excluir cadastro?',message,()=>{
     state[map[type]]=state[map[type]].filter(x=>x.id!==id);
     if (type==='ingredient') {
@@ -392,6 +531,8 @@ function deleteRecord(type,id) {
     if (type==='dough') state.cookies.forEach(c=>{if(c.doughId===id)c.doughId='';});
     if (type==='filling') state.cookies.forEach(c=>{if(c.fillingId===id)c.fillingId='';});
     if (type==='cookie') state.kits.forEach(k=>{if(k.baseCookieId===id)k.baseCookieId='';});
+    if (type==='packaging') state.packagingKits.forEach(k=>k.components=(k.components||[]).filter(c=>c.packagingId!==id));
+    if (type==='packagingKit') state.cookies.forEach(c=>{if(c.packagingKitId===id)c.packagingKitId='';});
     saveState(); render(); showToast('Cadastro excluído e referências ajustadas.');
   });
 }
@@ -400,11 +541,20 @@ function addRecord(type) {
   if (type==='ingredient') state.ingredients.push({id,name:'Novo insumo',price:0,packQty:1000,unit:'g',note:''});
   if (type==='dough') state.doughs.push({id,name:'Nova massa',yield:1,components:[]});
   if (type==='filling') state.fillings.push({id,name:'Novo recheio',other:0,note:'',components:[]});
-  if (type==='cookie') state.cookies.push({id,name:'Novo sabor',doughId:state.doughs[0]?.id||'',fillingId:state.fillings[0]?.id||'',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:0,platformFee:0.27});
+  if (type==='cookie') state.cookies.push({id,name:'Novo sabor',doughId:state.doughs[0]?.id||'',fillingId:state.fillings[0]?.id||'',packagingKitId:state.packagingKits[0]?.id||'',fixed:1.5,labor:0,markup:3,currentPrice:0,platformFee:0.27});
   if (type==='kit') state.kits.push({id,name:'Novo kit',qty:1,baseCookieId:state.cookies[0]?.id||'',discount:0});
+  if (type==='packaging') state.packagings.push({id,name:'Nova embalagem',price:0,packQty:1,unit:'un',note:''});
+  if (type==='packagingKit') state.packagingKits.push({id,name:'Novo kit de embalagem',note:'',components:[]});
   saveState(); render(); showToast('Novo cadastro criado.');
 }
 function addComponent(type,id) {
+  if(type==='packagingKit') {
+    const kit=findById(state.packagingKits,id); if(!kit) return;
+    if(!state.packagings.length) { showToast('Cadastre primeiro uma embalagem.'); return; }
+    kit.components=kit.components||[];
+    kit.components.push({id:makeId('pack-component'),packagingId:state.packagings[0].id,qty:1});
+    saveState(); render(); return;
+  }
   const list=type==='dough'?state.doughs:state.fillings;
   const recipe=findById(list,id); if(!recipe) return;
   if(!state.ingredients.length) { showToast('Cadastre primeiro um insumo.'); return; }
@@ -414,6 +564,11 @@ function addComponent(type,id) {
   saveState(); render();
 }
 function removeComponent(type,id,subid) {
+  if(type==='packagingKit') {
+    const kit=findById(state.packagingKits,id); if(!kit) return;
+    kit.components=(kit.components||[]).filter(c=>c.id!==subid);
+    saveState(); render(); showToast('Embalagem removida da combinação.'); return;
+  }
   const list=type==='dough'?state.doughs:state.fillings;
   const recipe=findById(list,id); if(!recipe) return;
   recipe.components=(recipe.components||[]).filter(c=>c.id!==subid);
@@ -428,16 +583,18 @@ function updateField(el) {
     const obj=findById(state.ingredients,id);
     if(obj) {
       if(field==='unit' && obj.unit!==val && ((obj.unit==='g' && val==='kg') || (obj.unit==='kg' && val==='g'))) {
-        // Ao alternar g/kg, converte a embalagem e as quantidades já usadas
-        // nas receitas para manter o mesmo custo real após a mudança de unidade.
+        // Converte somente a quantidade comprada. Receitas continuam padronizadas em gramas.
         const factor = val==='kg' ? 0.001 : 1000;
         obj.packQty = Number((num(obj.packQty) * factor).toFixed(6));
-        [...state.doughs,...state.fillings].forEach(recipe => (recipe.components||[]).forEach(comp => {
-          if(comp.ingredientId===id) comp.qty = Number((num(comp.qty) * factor).toFixed(6));
-        }));
       }
       obj[field]=val;
     }
+  }
+  else if(entity==='packaging') { const obj=findById(state.packagings,id); if(obj) obj[field]=val; }
+  else if(entity==='packagingKit') { const obj=findById(state.packagingKits,id); if(obj) obj[field]=val; }
+  else if(entity==='packagingComponent') {
+    const obj=findById(state.packagingKits,id); const comp=obj&&(obj.components||[]).find(c=>c.id===el.dataset.subid);
+    if(comp) comp[field]=field==='qty'?Math.max(0,num(val)):val;
   }
   else if(entity==='dough') { const obj=findById(state.doughs,id); if(obj) obj[field]=val; }
   else if(entity==='filling') { const obj=findById(state.fillings,id); if(obj) obj[field]=val; }
@@ -483,7 +640,7 @@ function importBackup(file) {
       const required=['ingredients','doughs','fillings','cookies','kits'];
       if(!data||!required.every(k=>Array.isArray(data[k]))) throw new Error('O arquivo não parece ser um backup compatível.');
       showConfirm('Importar este backup?', 'Os dados atuais neste navegador serão substituídos pelos dados do arquivo selecionado. Exporte um backup atual antes de continuar.',()=>{
-        state={version:1,ingredients:data.ingredients,doughs:data.doughs,fillings:data.fillings,cookies:data.cookies,kits:data.kits};
+        state=normalizeState(data);
         saveState(); render(); showToast('Backup importado.');
       },'Substituir dados');
     } catch(err) { showToast(err.message||'Não foi possível importar esse arquivo.'); }
@@ -498,6 +655,8 @@ function handleAction(button) {
   else if(action==='delete') deleteRecord(type,id);
   else if(action==='add-dough-component') addComponent('dough',id);
   else if(action==='add-filling-component') addComponent('filling',id);
+  else if(action==='add-packaging-component') addComponent('packagingKit',id);
+  else if(action==='remove-packaging-component') removeComponent('packagingKit',id,button.dataset.subid);
   else if(action==='remove-dough-component') removeComponent('dough',id,button.dataset.subid);
   else if(action==='remove-filling-component') removeComponent('filling',id,button.dataset.subid);
   else if(action==='export') exportBackup();
@@ -522,4 +681,4 @@ function init() {
   render();
 }
 if (typeof document !== 'undefined') init();
-if (typeof module !== 'undefined' && module.exports) module.exports={DEFAULT_STATE,unitCost,doughStats,fillingStats,cookieStats,kitStats,clone,setStateForTest:value=>{state=value;}};
+if (typeof module !== 'undefined' && module.exports) module.exports={DEFAULT_STATE,unitCost,unitCostText,baseUnit,packagingUnitCost,packagingKitStats,doughStats,fillingStats,cookieStats,kitStats,normalizeState,clone,renderIngredients,renderDoughs,renderFillings,renderPackaging,renderCookies,renderPrices,renderHome,setStateForTest:value=>{state=value;}};
