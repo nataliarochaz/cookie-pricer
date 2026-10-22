@@ -113,3 +113,28 @@ h3 { font-size: 19px; }
 .kicker { letter-spacing: .08em; }
 
 .nav-note{padding:7px 12px 8px 38px;color:var(--muted);font-size:13px;line-height:1.35}
+
+/* V3.7: formatos de venda com hierarquia visual mais clara */
+.packaging-page-tools{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:18px 0 14px;padding:16px 18px;background:var(--surface, #fff);border:1px solid var(--border, #ece5de);border-radius:14px}
+.packaging-page-tools h3{margin:0 0 4px;font-size:18px}
+.packaging-page-tools p{margin:0;color:var(--muted);font-size:14px}
+.redesigned-format-card{padding:0;overflow:hidden;display:flex;flex-direction:column;gap:0}
+.format-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border, #ece5de)}
+.format-card-top>div{display:flex;flex-direction:column;gap:5px}
+.format-card-top>div>strong{font-size:19px;line-height:1.25}
+.format-units-pill{white-space:nowrap;border-radius:999px;padding:6px 10px;background:var(--soft, #f6f1eb);font-size:13px;font-weight:600}
+.format-card-section{padding:14px 20px;border-bottom:1px solid var(--border, #ece5de)}
+.format-card-section h4{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 9px}
+.format-pack-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;font-size:14px}
+.format-pack-row+ .format-pack-row{border-top:1px solid var(--border, #f0ebe6)}
+.format-pack-row small{color:var(--muted);font-size:12px}
+.format-pack-empty{font-size:14px;color:var(--muted)}
+.format-cost-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px 20px}
+.format-cost-grid>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.format-cost-grid small,.format-card-total small{font-size:12px;color:var(--muted);line-height:1.35}
+.format-cost-grid strong{font-size:15px}
+.format-card-total{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;background:var(--soft, #f8f5f1)}
+.format-card-total>div{display:flex;flex-direction:column;gap:4px}
+.format-card-total>div:last-child{text-align:right}
+.format-card-total strong{font-size:18px}
+@media(max-width:620px){.packaging-page-tools{align-items:flex-start;flex-direction:column}.format-cost-grid{grid-template-columns:1fr;gap:12px}.format-card-total{align-items:flex-start}.format-card-total strong{font-size:16px}}
