@@ -72,7 +72,7 @@ const DEFAULT_STATE = {
     {id:'pack-ref-individual',name:'Embalagem por cookie (referência da planilha)',price:1,packQty:1,unit:'un',note:'Valor de referência de R$ 1,00 da planilha original. Atualize com o preço da sua embalagem real.'}
   ],
   packagingKits: [
-    {id:'pack-kit-default',name:'Embalagem base (referência da planilha)',note:'Substitua os itens desta combinação pelas embalagens reais usadas no cookie.',components:[{id:'pack-component-default',packagingId:'pack-ref-individual',qty:1}]}
+    {id:'pack-kit-default',name:'Embalagem base (referência da planilha)',note:'Substitua os itens desta combinação pelas embalagens reais usadas no cookie.',components:[{id:'pack-component-default',packagingId:'pack-ref-individual',qty:1}],freightEnabled:false,freightTotal:10,freightCookieQty:12}
   ],
   unitBaseVersion: 2,
   packagingModelVersion: 1
@@ -113,14 +113,18 @@ function packagingUnitCost(packaging) {
   return qty > 0 ? Math.max(0,num(packaging.price))/qty : 0;
 }
 function packagingKitStats(kit) {
-  if (!kit) return {cost:0,missing:0};
-  let cost=0, missing=0;
+  if (!kit) return {cost:0,componentsCost:0,freight:0,freightTotal:0,freightCookieQty:12,freightEnabled:false,missing:0};
+  let componentsCost=0, missing=0;
   (kit.components||[]).forEach(component=>{
     const item=findById(state.packagings||[],component.packagingId);
     if(!item){missing++;return;}
-    cost += Math.max(0,num(component.qty))*packagingUnitCost(item);
+    componentsCost += Math.max(0,num(component.qty))*packagingUnitCost(item);
   });
-  return {cost,missing};
+  const freightEnabled=kit.freightEnabled===true;
+  const freightTotal=Math.max(0,num(kit.freightTotal ?? 10));
+  const freightCookieQty=Math.max(1,Math.floor(num(kit.freightCookieQty ?? 12) || 12));
+  const freight=freightEnabled ? freightTotal/freightCookieQty : 0;
+  return {cost:componentsCost+freight,componentsCost,freight,freightTotal,freightCookieQty,freightEnabled,missing};
 }
 function doughStats(dough) {
   if (!dough) return {cost:0,yield:0,unitCost:0,totalQty:0,missing:1};
@@ -192,6 +196,12 @@ function normalizeState(raw) {
   data.kits=Array.isArray(data.kits)?data.kits:[];
   data.packagings=Array.isArray(data.packagings)?data.packagings:[];
   data.packagingKits=Array.isArray(data.packagingKits)?data.packagingKits:[];
+  // Per-kit optional freight allocation. Existing kits default to freight off.
+  data.packagingKits.forEach(kit=>{
+    if(typeof kit.freightEnabled!=='boolean') kit.freightEnabled=false;
+    if(kit.freightTotal===undefined || kit.freightTotal===null) kit.freightTotal=10;
+    if(kit.freightCookieQty===undefined || kit.freightCookieQty===null || num(kit.freightCookieQty)<1) kit.freightCookieQty=12;
+  });
 
   // Older versions converted recipe quantities to kg when the purchase unit was changed.
   // Recipe quantities are now always g/ml/un, so restore quantities of kg-purchased items to grams once.
@@ -407,13 +417,22 @@ function renderPackaging() {
     const stats=packagingKitStats(kit);
     return `<section class="card recipe-card packaging-kit-card">
       <div class="card-header"><div style="flex:1;min-width:190px"><label class="label">Nome do kit de embalagem</label>${input('packagingKit',kit.id,'name',kit.name,{className:'field field-name'})}<div class="helper">${esc(kit.note||'Combinação de embalagens usada em um cookie.')}</div></div>
-        <div class="recipe-summary"><div class="recipe-stat"><span>Itens</span><strong>${(kit.components||[]).length}</strong></div><div class="recipe-stat"><span>Custo por cookie</span><strong>${money(stats.cost)}</strong></div></div>${actionButtons('packagingKit',kit.id)}
+        <div class="recipe-summary"><div class="recipe-stat"><span>Itens</span><strong>${(kit.components||[]).length}</strong></div><div class="recipe-stat"><span>Custo por cookie</span><strong>${money(stats.cost)}</strong></div><div class="recipe-stat"><span>Frete por cookie</span><strong>${stats.freightEnabled?money(stats.freight):'Não aplicado'}</strong></div></div>${actionButtons('packagingKit',kit.id)}
       </div>
       <div class="recipe-list"><div class="recipe-list-top"><div><h3>Composição da embalagem</h3><div class="muted small">Combine sacos, etiquetas, fitas e outros itens. A quantidade é por cookie; use frações se uma embalagem atender a vários cookies.</div></div><button class="button button-quiet button-small" data-action="add-packaging-component" data-id="${esc(kit.id)}">+ Item de embalagem</button></div>
         ${packagingComponentRows(kit)}
+        <div class="divider"></div>
+        <div class="freight-panel">
+          <label class="freight-toggle"><input type="checkbox" class="freight-checkbox" data-entity="packagingKit" data-id="${esc(kit.id)}" data-field="freightEnabled" ${stats.freightEnabled?'checked':''}><span><strong>Adicionar frete neste kit</strong><small>Ative somente nos kits que precisam incluir o custo de transporte.</small></span></label>
+          <div class="form-grid freight-fields">
+            <div class="form-field"><label class="label">Valor total do frete (R$)</label>${input('packagingKit',kit.id,'freightTotal',kit.freightTotal??10,{type:'number',step:'0.01',min:0,className:'field field-money'})}</div>
+            <div class="form-field"><label class="label">Dividir entre quantos cookies?</label>${input('packagingKit',kit.id,'freightCookieQty',kit.freightCookieQty??12,{type:'number',step:'1',min:1,className:'field field-number'})}<div class="helper">Padrão: R$ 10,00 ÷ 12 cookies = ${money(10/12)} por cookie.</div></div>
+            <div class="form-field freight-result"><label class="label">Frete incluído por cookie</label><div class="freight-value">${stats.freightEnabled?money(stats.freight):money(0)}</div><div class="helper">${stats.freightEnabled?'Este valor já está incluído no custo do kit.':'Frete desativado para este kit.'}</div></div>
+          </div>
+        </div>
         <div class="divider"></div><div class="form-grid"><div class="form-field" style="grid-column:span 2"><label class="label">Observação do kit</label>${input('packagingKit',kit.id,'note',kit.note||'',{className:'field',placeholder:'Opcional'})}</div></div>
       </div>
-      <div class="recipe-footer"><span>Custo calculado por cookie: <strong>${money(stats.cost)}</strong></span>${stats.missing?`<span class="price-bad">${stats.missing} item(ns) sem embalagem associada</span>`:''}</div>
+      <div class="recipe-footer"><span>Custo das embalagens por cookie: <strong>${money(stats.componentsCost)}</strong></span><span>Frete rateado: <strong>${stats.freightEnabled?money(stats.freight):money(0)}</strong></span><span>Custo total por cookie: <strong>${money(stats.cost)}</strong></span>${stats.missing?`<span class="price-bad">${stats.missing} item(ns) sem embalagem associada</span>`:''}</div>
     </section>`;
   }).join('');
   return `${pageHeading('BASE DE CUSTOS','Embalagens','Cadastre cada embalagem comprada. Depois crie combinações e selecione o kit usado em cada sabor.',`<button class="button button-primary" data-action="add" data-type="packaging">+ Nova embalagem</button>`)}
@@ -544,7 +563,7 @@ function addRecord(type) {
   if (type==='cookie') state.cookies.push({id,name:'Novo sabor',doughId:state.doughs[0]?.id||'',fillingId:state.fillings[0]?.id||'',packagingKitId:state.packagingKits[0]?.id||'',fixed:1.5,labor:0,markup:3,currentPrice:0,platformFee:0.27});
   if (type==='kit') state.kits.push({id,name:'Novo kit',qty:1,baseCookieId:state.cookies[0]?.id||'',discount:0});
   if (type==='packaging') state.packagings.push({id,name:'Nova embalagem',price:0,packQty:1,unit:'un',note:''});
-  if (type==='packagingKit') state.packagingKits.push({id,name:'Novo kit de embalagem',note:'',components:[]});
+  if (type==='packagingKit') state.packagingKits.push({id,name:'Novo kit de embalagem',note:'',components:[],freightEnabled:false,freightTotal:10,freightCookieQty:12});
   saveState(); render(); showToast('Novo cadastro criado.');
 }
 function addComponent(type,id) {
@@ -577,7 +596,7 @@ function removeComponent(type,id,subid) {
 function updateField(el) {
   const entity=el.dataset.entity,id=el.dataset.id,field=el.dataset.field;
   if(!entity||!field) return;
-  let val=el.value;
+  let val=el.type==='checkbox' ? el.checked : el.value;
   if(el.type==='number') val=num(val);
   if(entity==='ingredient') {
     const obj=findById(state.ingredients,id);
@@ -591,7 +610,15 @@ function updateField(el) {
     }
   }
   else if(entity==='packaging') { const obj=findById(state.packagings,id); if(obj) obj[field]=val; }
-  else if(entity==='packagingKit') { const obj=findById(state.packagingKits,id); if(obj) obj[field]=val; }
+  else if(entity==='packagingKit') {
+    const obj=findById(state.packagingKits,id);
+    if(obj) {
+      if(field==='freightEnabled') obj[field]=Boolean(val);
+      else if(field==='freightTotal') obj[field]=Math.max(0,num(val));
+      else if(field==='freightCookieQty') obj[field]=Math.max(1,Math.floor(num(val)||12));
+      else obj[field]=val;
+    }
+  }
   else if(entity==='packagingComponent') {
     const obj=findById(state.packagingKits,id); const comp=obj&&(obj.components||[]).find(c=>c.id===el.dataset.subid);
     if(comp) comp[field]=field==='qty'?Math.max(0,num(val)):val;

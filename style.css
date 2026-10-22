@@ -206,3 +206,13 @@ tbody tr:hover td { background: #fffaf2; }
   .home-price-row .hide-mobile { display: none; }
   .kpi-value { font-size: 25px; }
 }
+
+.freight-panel { border: 1px solid #e4ddd1; background: #fbf8f3; border-radius: 12px; padding: 15px; }
+.freight-toggle { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; margin-bottom: 15px; }
+.freight-checkbox { width: 18px; height: 18px; accent-color: var(--accent); margin: 1px 0 0; flex: none; cursor: pointer; }
+.freight-toggle strong { display: block; color: var(--ink); font-size: 13px; }
+.freight-toggle small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+.freight-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.freight-result { background: #edf3ee; border: 1px solid #d7e4d9; border-radius: 9px; padding: 10px 12px; }
+.freight-value { color: var(--accent-dark); font-weight: 800; font-size: 19px; font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .freight-fields { grid-template-columns: 1fr; } }
