@@ -180,17 +180,19 @@ function actionButtons(type,id) {
 }
 function input(entity,id,field,value,options={}) {
   const type = options.type || 'text';
+  const subid = options.subId ? ` data-subid="${esc(options.subId)}"` : '';
   const step = options.step ? ` step="${options.step}"` : '';
   const min = options.min !== undefined ? ` min="${options.min}"` : '';
   const max = options.max !== undefined ? ` max="${options.max}"` : '';
   const klass = options.className || 'field field-sm';
   const placeholder = options.placeholder ? ` placeholder="${esc(options.placeholder)}"` : '';
-  return `<input class="${klass}" type="${type}" data-entity="${esc(entity)}" data-id="${esc(id)}" data-field="${esc(field)}" value="${esc(value)}"${step}${min}${max}${placeholder}>`;
+  return `<input class="${klass}" type="${type}" data-entity="${esc(entity)}" data-id="${esc(id)}" data-field="${esc(field)}"${subid} value="${esc(value)}"${step}${min}${max}${placeholder}>`;
 }
 function select(entity,id,field,value,items,options={}) {
   const placeholder = options.placeholder || 'Selecione';
+  const subid = options.subId ? ` data-subid="${esc(options.subId)}"` : '';
   const none = options.allowBlank ? `<option value="">${esc(placeholder)}</option>` : '';
-  return `<select class="${options.className||'field field-sm field-select'}" data-entity="${esc(entity)}" data-id="${esc(id)}" data-field="${esc(field)}">${none}${items.map(item=>`<option value="${esc(item.id)}" ${item.id===value?'selected':''}>${esc(item.name)}</option>`).join('')}</select>`;
+  return `<select class="${options.className||'field field-sm field-select'}" data-entity="${esc(entity)}" data-id="${esc(id)}" data-field="${esc(field)}"${subid}>${none}${items.map(item=>`<option value="${esc(item.id)}" ${item.id===value?'selected':''}>${esc(item.name)}</option>`).join('')}</select>`;
 }
 function render() {
   const main = document.getElementById('main-content');
@@ -228,12 +230,12 @@ function renderIngredients() {
     <td class="name-cell">${input('ingredient',ing.id,'name',ing.name,{className:'field field-sm field-name'})}</td>
     <td class="num">${input('ingredient',ing.id,'price',ing.price,{type:'number',step:'0.01',min:0,className:'field field-sm field-money'})}</td>
     <td class="num">${input('ingredient',ing.id,'packQty',ing.packQty,{type:'number',step:'0.01',min:0,className:'field field-sm field-number'})}</td>
-    <td>${select('ingredient',ing.id,'unit',ing.unit,[{id:'g',name:'g'},{id:'ml',name:'ml'},{id:'un',name:'un'}],{className:'field field-sm field-select'})}</td>
+    <td>${select('ingredient',ing.id,'unit',ing.unit,[{id:'g',name:'g'},{id:'kg',name:'kg'},{id:'ml',name:'ml'},{id:'un',name:'un'}],{className:'field field-sm field-select'})}</td>
     <td class="num strong money">${money(unitCost(ing))}<div class="muted small">por ${esc(ing.unit||'un')}</div></td>
     <td>${input('ingredient',ing.id,'note',ing.note||'',{className:'field field-sm',placeholder:'Observação'})}</td>
     <td>${actionButtons('ingredient',ing.id)}</td>
   </tr>`).join('');
-  return `${pageHeading('BASE DE CUSTOS','Insumos','Cadastre o preço pago e a quantidade que veio na embalagem. O sistema calcula o custo por grama, ml ou unidade.',`<button class="button button-primary" data-action="add" data-type="ingredient">+ Novo insumo</button>`)}
+  return `${pageHeading('BASE DE CUSTOS','Insumos','Cadastre o preço pago, a quantidade da embalagem e a unidade (g, kg, ml ou un). Ao alternar entre g e kg, as quantidades existentes são convertidas automaticamente.',`<button class="button button-primary" data-action="add" data-type="ingredient">+ Novo insumo</button>`)}
     <div class="card"><div class="card-header"><div><h2>Lista de insumos</h2><p>${state.ingredients.length} itens cadastrados · os valores alimentam as massas e os recheios.</p></div><span class="pill pill-green">Cálculo automático</span></div>
       <div class="table-wrap"><table><thead><tr><th>Insumo</th><th class="num">Preço pago (R$)</th><th class="num">Qtd. embalagem</th><th>Unidade</th><th class="num">Preço por unidade</th><th>Observação</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="7"><div class="empty-state">Nenhum insumo cadastrado.</div></td></tr>'}</tbody></table></div>
     </div>
@@ -245,8 +247,8 @@ function componentRows(type, recipe, components) {
   const rows = components.map(comp=>{
     const ing = getIngredient(comp.ingredientId);
     return `<div class="recipe-line">
-      ${select(entity,recipe.id,'ingredientId',comp.ingredientId,state.ingredients.map(i=>({id:i.id,name:i.name})),{className:'field field-sm field-select',placeholder:'Selecione insumo',allowBlank:true})}
-      <div class="qty-control">${input(entity,recipe.id,'qty',comp.qty,{type:'number',step:'0.01',min:0,className:'field field-sm field-number qty-field'})}<span class="unit-suffix">${esc(ing?.unit||'un')}</span></div>
+      ${select(entity,recipe.id,'ingredientId',comp.ingredientId,state.ingredients.map(i=>({id:i.id,name:i.name})),{className:'field field-sm field-select',placeholder:'Selecione insumo',allowBlank:true,subId:comp.id})}
+      <div class="qty-control">${input(entity,recipe.id,'qty',comp.qty,{type:'number',step:ing?.unit==='kg'?'0.0001':'0.01',min:0,className:'field field-sm field-number qty-field',subId:comp.id})}<span class="unit-suffix">${esc(ing?.unit||'un')}</span></div>
       <button class="button button-danger button-icon" title="Remover ingrediente da receita" aria-label="Remover ingrediente" data-action="${removeAction}" data-id="${esc(recipe.id)}" data-subid="${esc(comp.id)}">×</button>
     </div>`;
   }).join('');
@@ -275,7 +277,7 @@ function renderFillings() {
     const stats = fillingStats(filling);
     return `<section class="card recipe-card">
       <div class="card-header"><div style="flex:1;min-width:185px"><label class="label">Nome do recheio</label>${input('filling',filling.id,'name',filling.name,{className:'field field-name'})}<div class="helper">${esc(filling.note||'Custo por unidade de cookie.')}</div></div>
-        <div class="recipe-summary"><div class="recipe-stat"><span>Peso registrado</span><strong>${decimal(stats.totalQty,2)} g</strong></div><div class="recipe-stat"><span>Outros custos</span><strong>${money(stats.other)}</strong></div><div class="recipe-stat"><span>Custo por cookie</span><strong>${money(stats.cost)}</strong></div></div>
+        <div class="recipe-summary"><div class="recipe-stat"><span>Insumos na composição</span><strong>${(filling.components||[]).length}</strong></div><div class="recipe-stat"><span>Outros custos</span><strong>${money(stats.other)}</strong></div><div class="recipe-stat"><span>Custo por cookie</span><strong>${money(stats.cost)}</strong></div></div>
         <div class="actions-cell"><button class="button button-quiet button-icon" title="Duplicar recheio" aria-label="Duplicar recheio" data-action="duplicate" data-type="filling" data-id="${esc(filling.id)}">⧉</button><button class="button button-danger button-icon" title="Excluir recheio" aria-label="Excluir recheio" data-action="delete" data-type="filling" data-id="${esc(filling.id)}">×</button></div>
       </div>
       <div class="recipe-list"><div class="recipe-list-top"><div><h3>Composição do recheio</h3><div class="muted small">Informe a quantidade usada em um cookie. Para custo direto, use “Outros”.</div></div><button class="button button-quiet button-small" data-action="add-filling-component" data-id="${esc(filling.id)}">+ Ingrediente</button></div>
@@ -395,7 +397,7 @@ function deleteRecord(type,id) {
 }
 function addRecord(type) {
   const id=makeId(type);
-  if (type==='ingredient') state.ingredients.push({id,name:'Novo insumo',price:0,packQty:1,unit:'g',note:''});
+  if (type==='ingredient') state.ingredients.push({id,name:'Novo insumo',price:0,packQty:1000,unit:'g',note:''});
   if (type==='dough') state.doughs.push({id,name:'Nova massa',yield:1,components:[]});
   if (type==='filling') state.fillings.push({id,name:'Novo recheio',other:0,note:'',components:[]});
   if (type==='cookie') state.cookies.push({id,name:'Novo sabor',doughId:state.doughs[0]?.id||'',fillingId:state.fillings[0]?.id||'',packaging:1,fixed:1.5,labor:0,markup:3,currentPrice:0,platformFee:0.27});
@@ -422,7 +424,21 @@ function updateField(el) {
   if(!entity||!field) return;
   let val=el.value;
   if(el.type==='number') val=num(val);
-  if(entity==='ingredient') { const obj=findById(state.ingredients,id); if(obj) obj[field]=val; }
+  if(entity==='ingredient') {
+    const obj=findById(state.ingredients,id);
+    if(obj) {
+      if(field==='unit' && obj.unit!==val && ((obj.unit==='g' && val==='kg') || (obj.unit==='kg' && val==='g'))) {
+        // Ao alternar g/kg, converte a embalagem e as quantidades já usadas
+        // nas receitas para manter o mesmo custo real após a mudança de unidade.
+        const factor = val==='kg' ? 0.001 : 1000;
+        obj.packQty = Number((num(obj.packQty) * factor).toFixed(6));
+        [...state.doughs,...state.fillings].forEach(recipe => (recipe.components||[]).forEach(comp => {
+          if(comp.ingredientId===id) comp.qty = Number((num(comp.qty) * factor).toFixed(6));
+        }));
+      }
+      obj[field]=val;
+    }
+  }
   else if(entity==='dough') { const obj=findById(state.doughs,id); if(obj) obj[field]=val; }
   else if(entity==='filling') { const obj=findById(state.fillings,id); if(obj) obj[field]=val; }
   else if(entity==='cookie') {
